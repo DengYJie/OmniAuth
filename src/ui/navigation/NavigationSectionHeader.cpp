@@ -1,0 +1,86 @@
+#include "ui/navigation/NavigationSectionHeader.h"
+
+#include <QPainter>
+#include <QPaintEvent>
+#include <QMouseEvent>
+
+#include "ui/navigation/NavigationMetrics.h"
+
+namespace ui::navigation {
+
+NavigationSectionHeader::NavigationSectionHeader(const QString& text, QWidget* parent)
+    : NavigationWidget(/*isSelectable=*/false, parent)
+    , m_text(text)
+{
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    setFocusPolicy(Qt::NoFocus);
+    updateCompactHeight();
+}
+
+void NavigationSectionHeader::setExpandProgress(float progress)
+{
+    NavigationWidget::setExpandProgress(progress);
+    updateCompactHeight();
+}
+
+void NavigationSectionHeader::setOrientation(NavigationOrientation orientation)
+{
+    NavigationWidget::setOrientation(orientation);
+    // 基类按通用行高设固定高度，header 需按自身规范（Vertical=40 折叠缩放 / Top=48）重算
+    updateCompactHeight();
+    updateGeometry();
+}
+
+QSize NavigationSectionHeader::sizeHint() const
+{
+    if (m_orientation == NavigationOrientation::Horizontal) {
+        QFont f = themeFont(Typography::FontRole::BodyStrong).toQFont();
+        QFontMetrics fm(f);
+        // text width + paddings
+        return QSize(fm.horizontalAdvance(m_text) + themeSpacing().medium * 2, kTopBarItemHeight);
+    }
+    return QSize(0, qRound(kSectionHeight * m_expandProgress)); // Vertical mode stretches
+}
+
+void NavigationSectionHeader::updateCompactHeight()
+{
+    // Top 模式（Horizontal）高度对齐栏高，
+    if (m_orientation == NavigationOrientation::Horizontal) {
+        setFixedHeight(kTopBarItemHeight);
+        return;
+    }
+    setFixedHeight(qRound(kSectionHeight * m_expandProgress));
+}
+
+void NavigationSectionHeader::mousePressEvent(QMouseEvent* event)
+{
+    // 分区标题不可点击：不进入 pressed 态，也不发 clicked
+    event->ignore();
+}
+
+void NavigationSectionHeader::mouseReleaseEvent(QMouseEvent* event)
+{
+    event->ignore();
+}
+
+void NavigationSectionHeader::paintEvent(QPaintEvent* /*event*/)
+{
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::TextAntialiasing);
+    
+    if (m_expandProgress <= 0.01f)
+        return;
+        
+    painter.setOpacity(m_expandProgress);
+    painter.setFont(themeFont(Typography::FontRole::BodyStrong).toQFont());
+    painter.setPen(colorsRef().textSecondary);
+    
+    // Horizontal 采用普通边距，Vertical 与图标左边缘对齐
+    const int x = (m_orientation == NavigationOrientation::Horizontal)
+        ? themeSpacing().medium
+        : (kRowLeftInset + kContentStart);
+    const QRect textRect(x, 0, qMax(0, width() - x - themeSpacing().small), height());
+    painter.drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter | Qt::TextSingleLine, m_text);
+}
+
+} // namespace ui::navigation

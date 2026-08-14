@@ -1,0 +1,49 @@
+﻿# Build directories
+build/
+build-*/
+bin/
+out/
+.cache/
+
+# IDE & Editor files
+.qtcreator/
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosv
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+CMakeUserPresets.json
+cmake_install.cmake
+Makefile
+
+# third-party libraries
+third_party/
+
+# Generated source files
+*_autogen/
+
+# Temporary and log files
+*.log
+*.tmp
+
+.omo/
+vcpkg_installed/
+
+# AI agent
+.codebuddy/
+.codegraph/
+
+# virtual environments
+.venv/
+
+# AI Models
+res/models/
+
+# Data
+data/
+!src/data/
