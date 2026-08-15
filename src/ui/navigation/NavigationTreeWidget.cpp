@@ -85,7 +85,10 @@ namespace ui::navigation {
 
     NavigationTreeWidget::NavigationTreeWidget(NavigationTreeWidget* rootNode)
         : NavigationTreeWidgetBase(rootNode, rootNode)
-    {}
+    {
+        // 逻辑节点仅承载树结构，不参与布局，避免空 QWidget 覆盖在根容器左上角拦截鼠标事件
+        hide();
+    }
 
     NavigationTreeWidget* NavigationTreeWidget::nodeFor(const QString& routeKey)
     {
