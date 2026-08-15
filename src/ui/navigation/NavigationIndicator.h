@@ -75,6 +75,8 @@ private:
     bool isSamePosition(const QRectF& targetRect) const;
     /// 确保 Z 序在滚动区之上
     void raiseToTop();
+    /// 配置飞行动画通用属性（缓动 + 0→1 + 时长），各入口传入自身缓动；durationMs 缺省时取主题标准时长
+    void beginFlight(const QEasingCurve& easing, int durationMs = -1);
 
     /// 首次或失效时沿父链解析一次并缓存
     fluent::FluentElement::Theme cachedEffectiveTheme() const;
@@ -95,6 +97,8 @@ private:
     /// 当前动画模式：Normal 标准飞行，PortalReturn 展开恢复，CrossWindowPortal 完全映射插值飞跃
     enum class AnimationMode { Normal, PortalReturn, CrossWindowPortal };
     AnimationMode m_animMode = AnimationMode::Normal;
+    /// 本次飞行为同轴平移（同 x 或同 y），用 WinUI 分段缓动而非单一 decelerate
+    bool m_sameAxisFlight = false;
 };
 
 } // namespace ui::navigation

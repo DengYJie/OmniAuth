@@ -9,6 +9,21 @@
 #include "ui/navigation/NavigationMetrics.h"
 #include "ui/navigation/NavigationWidget.h"
 
+namespace {
+    // WinUI 指示条前半段缓动：cubic-bezier(0.9,0.1,1.0,0.2)，快速冲刺冲过头
+    QEasingCurve winuiOvershoot() {
+        QEasingCurve c(QEasingCurve::BezierSpline);
+        c.addCubicBezierSegment(QPointF(0.9, 0.1), QPointF(1.0, 0.2), QPointF(1.0, 1.0));
+        return c;
+    }
+    // WinUI 指示条后半段缓动：cubic-bezier(0.1,0.9,0.2,1.0)，回弹 settle
+    QEasingCurve winuiSettle() {
+        QEasingCurve c(QEasingCurve::BezierSpline);
+        c.addCubicBezierSegment(QPointF(0.1, 0.9), QPointF(0.2, 1.0), QPointF(1.0, 1.0));
+        return c;
+    }
+}
+
 namespace ui::navigation {
 
     fluent::FluentElement::Theme NavigationIndicator::cachedEffectiveTheme() const {
@@ -63,20 +78,48 @@ namespace ui::navigation {
                 }
             }
             else if (m_orientation == Orientation::Horizontal) {
-                // 水平胶囊引入流体拉伸，模拟 WinUI 弹性
-                const qreal current_x = m_startRect.x() + (m_targetRect.x() - m_startRect.x()) * p;
-                const qreal width = m_startRect.width() + (m_targetRect.width() - m_startRect.width()) * p;
-                const qreal stretch = qSin(p * M_PI) * qMin(16.0, qAbs(m_targetRect.x() - m_startRect.x()) * 0.4);
+                if (m_animMode == AnimationMode::Normal && m_sameAxisFlight) {
+                    // WinUI 拉伸位移机制：Stretch-and-shift，位移快速到位后靠拉伸回弹
+                    qreal scaleP = 0.0;
+                    if (p <= 1.0 / 3.0) {
+                        scaleP = winuiOvershoot().valueForProgress(p * 3.0);
+                        if (m_targetRect.x() >= m_startRect.x()) { // 向右移动
+                            m_currentRect.setLeft(m_startRect.left());
+                            m_currentRect.setRight(m_startRect.right() + (m_targetRect.right() - m_startRect.right()) * scaleP);
+                        } else { // 向左移动
+                            m_currentRect.setRight(m_startRect.right());
+                            m_currentRect.setLeft(m_startRect.left() + (m_targetRect.left() - m_startRect.left()) * scaleP);
+                        }
+                    } else {
+                        scaleP = 1.0 - winuiSettle().valueForProgress((p - 1.0 / 3.0) * 1.5);
+                        if (m_targetRect.x() >= m_startRect.x()) { // 向右移动
+                            m_currentRect.setRight(m_targetRect.right());
+                            m_currentRect.setLeft(m_targetRect.left() - (m_targetRect.left() - m_startRect.left()) * scaleP);
+                        } else { // 向左移动
+                            m_currentRect.setLeft(m_targetRect.left());
+                            m_currentRect.setRight(m_targetRect.right() + (m_startRect.right() - m_targetRect.right()) * scaleP);
+                        }
+                    }
+                    m_currentRect.setTop(m_targetRect.top());
+                    m_currentRect.setBottom(m_targetRect.bottom());
+                } else {
+                    // 跨轴/降级动画：平滑移动 + 简单的弹性拉伸
+                    const qreal moveP = p;
+                    const qreal stretchAmp = (p <= 1.0 / 3.0) ? (p * 3.0) : ((1.0 - p) * 1.5);
+                    const qreal current_x = m_startRect.x() + (m_targetRect.x() - m_startRect.x()) * moveP;
+                    const qreal width = m_startRect.width() + (m_targetRect.width() - m_startRect.width()) * moveP;
+                    const qreal stretch = stretchAmp * qMin(16.0, qAbs(m_targetRect.x() - m_startRect.x()) * 0.4);
 
-                m_currentRect.setY(m_startRect.y() + (m_targetRect.y() - m_startRect.y()) * p);
-                m_currentRect.setHeight(m_startRect.height() + (m_targetRect.height() - m_startRect.height()) * p);
+                    m_currentRect.setY(m_startRect.y() + (m_targetRect.y() - m_startRect.y()) * moveP);
+                    m_currentRect.setHeight(m_startRect.height() + (m_targetRect.height() - m_startRect.height()) * moveP);
 
-                if (m_targetRect.x() > m_startRect.x()) { // 向右移动
-                    m_currentRect.setLeft(current_x);
-                    m_currentRect.setRight(current_x + width + stretch);
-                } else { // 向左移动
-                    m_currentRect.setLeft(current_x - stretch);
-                    m_currentRect.setRight(current_x + width);
+                    if (m_targetRect.x() >= m_startRect.x()) { // 向右移动
+                        m_currentRect.setLeft(current_x);
+                        m_currentRect.setRight(current_x + width + stretch);
+                    } else { // 向左移动
+                        m_currentRect.setLeft(current_x - stretch);
+                        m_currentRect.setRight(current_x + width);
+                    }
                 }
             } else {
                 // Left 模式：跨层级（X 不同）时用穿越门效果
@@ -110,19 +153,46 @@ namespace ui::navigation {
                         }
                     }
                 } else {
-                    const qreal current_y = m_startRect.y() + (m_targetRect.y() - m_startRect.y()) * p;
-                    const qreal height = m_startRect.height() + (m_targetRect.height() - m_startRect.height()) * p;
-                    const qreal stretch = qSin(p * M_PI) * qMin(16.0, qAbs(m_targetRect.y() - m_startRect.y()) * 0.4);
+                    if (m_animMode == AnimationMode::Normal && m_sameAxisFlight) {
+                        qreal scaleP = 0.0;
+                        if (p <= 1.0 / 3.0) {
+                            scaleP = winuiOvershoot().valueForProgress(p * 3.0);
+                            if (m_targetRect.y() >= m_startRect.y()) { // 向下移动
+                                m_currentRect.setTop(m_startRect.top());
+                                m_currentRect.setBottom(m_startRect.bottom() + (m_targetRect.bottom() - m_startRect.bottom()) * scaleP);
+                            } else { // 向上移动
+                                m_currentRect.setBottom(m_startRect.bottom());
+                                m_currentRect.setTop(m_startRect.top() + (m_targetRect.top() - m_startRect.top()) * scaleP);
+                            }
+                        } else {
+                            scaleP = 1.0 - winuiSettle().valueForProgress((p - 1.0 / 3.0) * 1.5);
+                            if (m_targetRect.y() >= m_startRect.y()) { // 向下移动
+                                m_currentRect.setBottom(m_targetRect.bottom());
+                                m_currentRect.setTop(m_targetRect.top() - (m_targetRect.top() - m_startRect.top()) * scaleP);
+                            } else { // 向上移动
+                                m_currentRect.setTop(m_targetRect.top());
+                                m_currentRect.setBottom(m_targetRect.bottom() + (m_startRect.bottom() - m_targetRect.bottom()) * scaleP);
+                            }
+                        }
+                        m_currentRect.setLeft(m_targetRect.left());
+                        m_currentRect.setRight(m_targetRect.right());
+                    } else {
+                        const qreal moveP = p;
+                        const qreal stretchAmp = (p <= 1.0 / 3.0) ? (p * 3.0) : ((1.0 - p) * 1.5);
+                        const qreal current_y = m_startRect.y() + (m_targetRect.y() - m_startRect.y()) * moveP;
+                        const qreal height = m_startRect.height() + (m_targetRect.height() - m_startRect.height()) * moveP;
+                        const qreal stretch = stretchAmp * qMin(16.0, qAbs(m_targetRect.y() - m_startRect.y()) * 0.4);
 
-                    m_currentRect.setX(m_startRect.x() + (m_targetRect.x() - m_startRect.x()) * p);
-                    m_currentRect.setWidth(m_startRect.width() + (m_targetRect.width() - m_startRect.width()) * p);
+                        m_currentRect.setX(m_startRect.x() + (m_targetRect.x() - m_startRect.x()) * moveP);
+                        m_currentRect.setWidth(m_startRect.width() + (m_targetRect.width() - m_startRect.width()) * moveP);
 
-                    if (m_targetRect.y() >= m_startRect.y()) { // 向下移动
-                        m_currentRect.setTop(current_y);
-                        m_currentRect.setBottom(current_y + height + stretch);
-                    } else { // 向上移动
-                        m_currentRect.setTop(current_y - stretch);
-                        m_currentRect.setBottom(current_y + height);
+                        if (m_targetRect.y() >= m_startRect.y()) { // 向下移动
+                            m_currentRect.setTop(current_y);
+                            m_currentRect.setBottom(current_y + height + stretch);
+                        } else { // 向上移动
+                            m_currentRect.setTop(current_y - stretch);
+                            m_currentRect.setBottom(current_y + height);
+                        }
                     }
                 }
             }
@@ -184,11 +254,16 @@ namespace ui::navigation {
 
         m_startRect = m_currentRect;
         m_targetRect = targetRect;
-        m_flightAnimation->stop();
-        m_flightAnimation->setEasingCurve(themeAnimation().decelerate);
-        m_flightAnimation->setStartValue(0.0);
-        m_flightAnimation->setEndValue(1.0);
-        m_flightAnimation->setDuration(themeAnimation().normal);
+        // 同轴平移（同 x 或同 y）用手动分段的 cubic-bezier 缓动，模拟 WinUI 的拉伸；
+        // 跨轴 portal 保持平滑 decelerate 原样
+        m_sameAxisFlight = qAbs(m_startRect.x() - m_targetRect.x()) < 0.5
+            || qAbs(m_startRect.y() - m_targetRect.y()) < 0.5;
+
+        if (m_sameAxisFlight) {
+            beginFlight(QEasingCurve::Linear, 600);
+        } else {
+            beginFlight(themeAnimation().decelerate);
+        }
         setGeometry(m_startRect.united(m_targetRect).toRect().adjusted(-5, -5, 5, 5));
         show();
         emit flightStarted();
@@ -214,11 +289,7 @@ namespace ui::navigation {
         
         m_targetRect = targetRect;
         m_currentRect = m_startRect;
-        m_flightAnimation->stop();
-        m_flightAnimation->setEasingCurve(themeAnimation().decelerate);
-        m_flightAnimation->setStartValue(0.0);
-        m_flightAnimation->setEndValue(1.0);
-        m_flightAnimation->setDuration(themeAnimation().normal);
+        beginFlight(themeAnimation().decelerate, themeAnimation().fast);
         setGeometry(targetRect.toRect().adjusted(-5, -5, 5, 5));
         show();
         emit flightStarted();
@@ -241,14 +312,10 @@ namespace ui::navigation {
         m_animMode = AnimationMode::CrossWindowPortal;
         m_startRect = startRect;
         m_targetRect = targetRect;
-        m_flightAnimation->stop();
-        m_flightAnimation->setEasingCurve(themeAnimation().decelerate);
-        m_flightAnimation->setStartValue(0.0);
-        m_flightAnimation->setEndValue(1.0);
-        m_flightAnimation->setDuration(themeAnimation().normal);
+        beginFlight(themeAnimation().decelerate, themeAnimation().fast);
 
         // 几何缓冲与初始帧按宿主方向分派：顶栏收缩只需起始矩形，
-        // 浮层向下生长（顶部固定、高度 0）只需覆盖目标矩形。
+        // 浮层向下生长（顶部固定、高度 0）只需覆盖目标矩形
         if (m_orientation == Orientation::Horizontal) {
             m_currentRect = m_startRect;
             setGeometry(m_startRect.toRect().adjusted(-5, -5, 5, 5));
@@ -276,7 +343,7 @@ namespace ui::navigation {
 
     bool NavigationIndicator::isSamePosition(const QRectF& targetRect) const
     {
-        // 目标几何与当前几何几乎相同（<1px）时视为"位置未变"，短路避免无谓动画。
+        // 目标几何与当前几何几乎相同（<1px）时视为位置未变，短路避免无谓动画
         return qAbs(targetRect.x() - m_currentRect.x()) < 1.0
             && qAbs(targetRect.y() - m_currentRect.y()) < 1.0;
     }
@@ -284,6 +351,15 @@ namespace ui::navigation {
     void NavigationIndicator::raiseToTop()
     {
         raise();
+    }
+
+    void NavigationIndicator::beginFlight(const QEasingCurve& easing, int durationMs)
+    {
+        m_flightAnimation->stop();
+        m_flightAnimation->setEasingCurve(easing);
+        m_flightAnimation->setStartValue(0.0);
+        m_flightAnimation->setEndValue(1.0);
+        m_flightAnimation->setDuration(durationMs > 0 ? durationMs : themeAnimation().normal);
     }
 
     void NavigationIndicator::paintEvent(QPaintEvent* /*event*/)
