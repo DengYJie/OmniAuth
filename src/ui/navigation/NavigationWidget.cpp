@@ -42,7 +42,6 @@ NavigationWidget::NavigationWidget(bool isSelectable, QWidget* parent)
 void NavigationWidget::setCompacted(bool compacted) {
     if (m_isCompacted == compacted) return;
     m_isCompacted = compacted;
-    setExpandProgress(compacted ? 0.0f : 1.0f);
     updateGeometry();
     update();
 }
@@ -67,13 +66,12 @@ void NavigationWidget::setHoverProgress(float progress) {
 }
 
 void NavigationWidget::setExpandProgress(float progress) {
-    if (m_orientation == NavigationOrientation::Horizontal)
+    if (m_orientation == Orientation::Horizontal)
         return;
     const float p = qBound(0.0f, progress, 1.0f);
     if (qFuzzyCompare(p, m_expandProgress))
         return;
     m_expandProgress = p;
-    m_isCompacted = (p < 0.01f);
     update();
 }
 
@@ -94,11 +92,11 @@ void NavigationWidget::onThemeUpdated() {
     update();
 }
 
-void NavigationWidget::setOrientation(NavigationOrientation orientation) {
+void NavigationWidget::setOrientation(Orientation orientation) {
     if (m_orientation == orientation)
         return;
     m_orientation = orientation;
-    if (orientation == NavigationOrientation::Horizontal) {
+    if (orientation == Orientation::Horizontal) {
         m_isCompacted = false;
         m_expandProgress = 1.0f;
         setFixedHeight(kTopBarItemHeight);
@@ -113,7 +111,7 @@ void NavigationWidget::setOrientation(NavigationOrientation orientation) {
 
 QRectF NavigationWidget::indicatorRect() const {
     const auto s = themeSpacing();
-    if (m_orientation == NavigationOrientation::Horizontal) {
+    if (m_orientation == Orientation::Horizontal) {
         // Horizontal：底部居中水平条
         const qreal w = qMin(static_cast<qreal>(width()), static_cast<qreal>(kTopSelectionIndicatorWidth));
         const qreal x = (width() - w) / 2.0;
@@ -262,7 +260,7 @@ QColor NavigationWidget::currentBackgroundColor() const {
         return colors.subtleTertiary;
     }
     if (m_isSelected) {
-        if (m_orientation == NavigationOrientation::Horizontal)
+        if (m_orientation == Orientation::Horizontal)
             return Qt::transparent;
         return colors.subtleSecondary;
     }
@@ -275,7 +273,7 @@ QColor NavigationWidget::currentBackgroundColor() const {
 }
 
 float NavigationWidget::currentTextAlpha() const {
-    if (m_orientation == NavigationOrientation::Horizontal) {
+    if (m_orientation == Orientation::Horizontal) {
         return 1.0f;
     }
     if (m_expandProgress < 0.2f) return 0.0f;

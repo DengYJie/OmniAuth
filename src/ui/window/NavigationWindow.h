@@ -5,8 +5,6 @@
 #include <QHash>
 #include <QString>
 
-class QTimer;
-
 namespace ui::navigation {
 class NavigationPanel;
 class NavigationIndicator;
@@ -55,10 +53,6 @@ public:
 
 protected:
     void initNavigation();
-    /// 根据 paneOpen 决定面板展开/折叠，展开时若宽度动画未完成则延迟。
-    void applyNavigationPaneDensity();
-    /// 下发 compact 状态到面板。
-    void setNavigationPanesCompact(bool compact, bool animated);
 
 protected:
     ui::navigation::NavigationPanel* m_panel = nullptr;

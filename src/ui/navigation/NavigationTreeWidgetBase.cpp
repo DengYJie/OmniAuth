@@ -149,7 +149,7 @@ namespace ui::navigation {
 
         const bool flyoutMode = !inlineExpansion
             && (rootNode->isCompacted()
-                || rootNode->navigationPosition() == NavigationPosition::Top);
+                || rootNode->orientation() == Orientation::Horizontal);
 
         if (flyoutMode) {
             // 紧凑/Top：分类通过 flyout 渲染子项，chevron 点击做激活↔反激活切换

@@ -111,7 +111,7 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
 
         // 浮层内部指示条载体：配置为垂直模式，用于 Portal In 动画
         m_flyoutIndicator = new NavigationIndicator(this);
-        m_flyoutIndicator->setNavigationPosition(NavigationPosition::Left);
+        m_flyoutIndicator->setOrientation(Orientation::Vertical);
     }
 
     NavigationFlyout::~NavigationFlyout()
@@ -141,7 +141,7 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
         for (const auto& entry : entries) {
             if (entry.header) {
                 auto* header = new NavigationSectionHeader(entry.header->text(), nullptr);
-                header->setOrientation(NavigationOrientation::Vertical);
+                header->setOrientation(Orientation::Vertical);
                 header->setExpandProgress(1.0f);
                 m_contentLayout->addWidget(header);
             }
@@ -179,7 +179,7 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
             depth,
             srcItem->isSelectable(),
             nullptr);
-        item->setOrientation(NavigationOrientation::Vertical);
+        item->setOrientation(Orientation::Vertical);
         item->setExpandProgress(1.0f);
         item->setIconSize(srcItem->iconSize());
         item->setTreeParent(node);

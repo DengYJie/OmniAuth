@@ -25,8 +25,8 @@ public:
     explicit NavigationIndicator(QWidget* parent = nullptr);
     ~NavigationIndicator() override = default;
 
-    NavigationPosition navigationPosition() const { return m_position; }
-    void setNavigationPosition(NavigationPosition pos);
+    Orientation orientation() const { return m_orientation; }
+    void setOrientation(Orientation orientation);
 
     void setInitialPosition(const QRectF& rect);
 
@@ -42,18 +42,18 @@ public:
     bool isFlying() const;
 
     /**
-     * @brief Portal Return: 浮层关闭后，顶栏指示条从左向右展开恢复。
+     * @brief Portal Return: 浮层关闭后，水平指示条从左向右展开恢复。
      * @param targetRect 宿主坐标系下的目标矩形（恢复后的最终位置）
      */
     void playPortalReturn(const QRectF& targetRect);
 
     /**
-     * @brief Cross Window Portal: 跨窗口（Top栏到Flyout浮层）同步组合动效，形态按宿主方向分派。
-     * @param startRect 宿主坐标系下的起始矩形（顶栏水平条收缩起点）
+     * @brief Cross Window Portal: 跨窗口（Horizontal 栏到 Flyout 浮层）同步组合动效，形态按宿主方向分派。
+     * @param startRect 宿主坐标系下的起始矩形（水平条收缩起点）
      * @param targetRect 宿主坐标系下的目标矩形（浮层垂直条滑入终点）
      *
-     * Top 宿主（顶栏）：水平条向左收缩消失（左固定、右边界左移、宽度衰减到 0）；
-     * Left 宿主（浮层）：垂直条从顶部生成向下生长（顶部固定、高度从 0 增长）。
+     * Horizontal 宿主（顶栏）：水平条向左收缩消失（左固定、右边界左移、宽度衰减到 0）；
+     * Vertical 宿主（浮层）：垂直条从顶部生成向下生长（顶部固定、高度从 0 增长）。
      */
     void playCrossWindowPortal(const QRectF& startRect, const QRectF& targetRect);
 
@@ -90,7 +90,7 @@ private:
     mutable bool m_themeValid = false;
 
     QVariantAnimation* m_flightAnimation = nullptr;
-    NavigationPosition m_position = NavigationPosition::Left;
+    Orientation m_orientation = Orientation::Vertical;
 
     /// 当前动画模式：Normal 标准飞行，PortalReturn 展开恢复，CrossWindowPortal 完全映射插值飞跃
     enum class AnimationMode { Normal, PortalReturn, CrossWindowPortal };

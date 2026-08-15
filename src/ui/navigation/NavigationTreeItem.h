@@ -65,7 +65,7 @@ namespace ui::navigation {
 
         void setSelected(bool selected) override;
 
-        void setOrientation(NavigationOrientation orientation) override;
+        void setOrientation(Orientation orientation) override;
 
         float arrowAngle() const { return m_arrowAngle; }
         void setArrowAngle(float angle);

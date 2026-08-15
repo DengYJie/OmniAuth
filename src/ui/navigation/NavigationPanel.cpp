@@ -1,4 +1,4 @@
-#include "ui/navigation/NavigationPanel.h"
+﻿#include "ui/navigation/NavigationPanel.h"
 
 #include <QDebug>
 #include <QDynamicPropertyChangeEvent>
@@ -51,12 +51,12 @@ namespace ui::navigation {
         m_backButton->setVisible(false);
         connect(m_backButton, &NavigationPushButton::clicked, this, [this]() {
             if (isVisible()) {
-                if (auto* navView = qobject_cast<fluent::navigation::NavigationView*>(parentWidget())) {
+                if (m_navigationView) {
                     using DisplayMode = fluent::navigation::NavigationView::DisplayMode;
-                    const auto mode = navView->effectiveDisplayMode();
-                    if (navView->isPaneOpen()
+                    const auto mode = m_navigationView->effectiveDisplayMode();
+                    if (m_navigationView->isPaneOpen()
                         && (mode == DisplayMode::LeftCompact || mode == DisplayMode::LeftMinimal)) {
-                        navView->setPaneOpen(false);
+                        m_navigationView->setPaneOpen(false);
                         return;
                     }
                 }
@@ -67,7 +67,7 @@ namespace ui::navigation {
 
         m_menuButton = new NavigationToolButton(Typography::Icons::GlobalNav, this);
         m_menuButton->setAccessibleItemName(QStringLiteral("Toggle navigation pane"));
-        connect(m_menuButton, &NavigationPushButton::clicked, this, &NavigationPanel::togglePaneRequested);
+        connect(m_menuButton, &NavigationPushButton::clicked, this, &NavigationPanel::togglePane);
         m_headerLayout->addWidget(m_menuButton, 0, Qt::AlignLeft);
         m_layout->addLayout(m_headerLayout);
 
@@ -216,13 +216,47 @@ namespace ui::navigation {
 
         refreshIndicatorVisuals();
 
-        emit displayModeChanged(m_isCompacted);
         emit compactedChanged(m_isCompacted);
+    }
+
+    void NavigationPanel::setNavigationView(fluent::navigation::NavigationView* view)
+    {
+        if (m_navigationView == view)
+            return;
+        m_navigationView = view;
+        if (!view)
+            return;
+
+        connect(view, &fluent::navigation::NavigationView::effectiveDisplayModeChanged,
+            this, [this](fluent::navigation::NavigationView::DisplayMode mode) {
+                applyDisplayMode(static_cast<int>(mode));
+            });
+        connect(view, &fluent::navigation::NavigationView::paneOpenChanged,
+            this, [this](bool) { applyPaneDensity(); });
+
+        // 注入时立即按当前显示模式同步一次，供初始布局对齐
+        applyDisplayMode(static_cast<int>(view->effectiveDisplayMode()));
+    }
+
+    void NavigationPanel::applyDisplayMode(int mode)
+    {
+        using DisplayMode = fluent::navigation::NavigationView::DisplayMode;
+        const auto dm = static_cast<DisplayMode>(mode);
+        setOrientation(dm == DisplayMode::Top ? Orientation::Horizontal : Orientation::Vertical);
+        m_navigationView->setPaneOpen(dm == DisplayMode::Left || dm == DisplayMode::Top);
+    }
+
+    void NavigationPanel::applyPaneDensity()
+    {
+        if (!m_navigationView)
+            return;
+        setCompacted(!m_navigationView->isPaneOpen(), m_navigationView->isAnimationEnabled());
     }
 
     void NavigationPanel::togglePane()
     {
-        emit togglePaneRequested();
+        if (m_navigationView)
+            m_navigationView->setPaneOpen(!m_navigationView->isPaneOpen());
     }
 
     void NavigationPanel::setExpandProgress(float progress)
@@ -311,7 +345,7 @@ namespace ui::navigation {
 
     QSize NavigationPanel::sizeHint() const
     {
-        if (m_position == NavigationPosition::Top) {
+        if (m_orientation == Orientation::Horizontal) {
             int w = parentWidget() ? parentWidget()->width() : QWidget::sizeHint().width();
             return QSize(w, kTopBarItemHeight);
         }
@@ -337,7 +371,7 @@ namespace ui::navigation {
         QWidget::showEvent(event);
         if (m_indicator)
             m_indicator->raise();
-        // Top 模式下 panel 需跟随窗口宽度，但自身未必收到 resizeEvent，故监听顶层窗口
+        // Horizontal 模式下 panel 需跟随窗口宽度，但自身未必收到 resizeEvent，故监听顶层窗口
         if (QWidget* top = window()) {
             top->installEventFilter(this);
         }
@@ -357,9 +391,9 @@ namespace ui::navigation {
     {
         QWidget::resizeEvent(event);
 
-        if (auto* navView = qobject_cast<fluent::navigation::NavigationView*>(parentWidget())) {
-            const int expandedW = navView->expandedPaneWidth();
-            const int compactW = navView->compactPaneWidth();
+        if (m_navigationView) {
+            const int expandedW = m_navigationView->expandedPaneWidth();
+            const int compactW = m_navigationView->compactPaneWidth();
             if (expandedW > compactW) {
                 const float progress = qBound(0.0f, float(width() - compactW) / float(expandedW - compactW), 1.0f);
                 setExpandProgress(progress);
@@ -368,13 +402,13 @@ namespace ui::navigation {
 
     }
 
-    void NavigationPanel::setNavigationPosition(NavigationPosition position)
+    void NavigationPanel::setOrientation(Orientation orientation)
     {
-        if (m_position == position)
+        if (m_orientation == orientation)
             return;
-        m_position = position;
+        m_orientation = orientation;
 
-        const auto direction = (position == NavigationPosition::Top)
+        const auto direction = (orientation == Orientation::Horizontal)
             ? QBoxLayout::LeftToRight
             : QBoxLayout::TopToBottom;
 
@@ -383,7 +417,7 @@ namespace ui::navigation {
         m_userCardLayout->setDirection(direction);
 
         const auto s = themeSpacing();
-        if (position == NavigationPosition::Top) {
+        if (orientation == Orientation::Horizontal) {
             m_menuButton->hide();
             setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
             if (window()) {
@@ -392,7 +426,7 @@ namespace ui::navigation {
             else if (parentWidget()) {
                 setFixedWidth(parentWidget()->width());
             }
-            // Top 模式：外层布局边距清零，使导航项占满顶栏 48px 高度
+            // Horizontal 模式：外层布局边距清零，使导航项占满顶栏 48px 高度
             m_layout->setContentsMargins(0, 0, 0, 0);
             m_headerLayout->setContentsMargins(s.small, 0, 0, 0);
             // userCard 靠右：在横向布局末尾添加伸缩占位
@@ -406,10 +440,10 @@ namespace ui::navigation {
         }
 
         if (m_tree) {
-            m_tree->setNavigationPosition(position);
+            m_tree->setOrientation(orientation);
         }
         if (m_indicator) {
-            m_indicator->setNavigationPosition(position);
+            m_indicator->setOrientation(orientation);
         }
 
         refreshIndicatorVisuals(false);
@@ -430,11 +464,11 @@ namespace ui::navigation {
         return QWidget::event(event);
     }
 
-    // Top 模式下窗口缩放时跟随其宽度
+    // Horizontal 模式下窗口缩放时跟随其宽度
     bool NavigationPanel::eventFilter(QObject* watched, QEvent* event)
     {
         if (watched == window() && event->type() == QEvent::Resize) {
-            if (m_position == NavigationPosition::Top) {
+            if (m_orientation == Orientation::Horizontal) {
                 setFixedWidth(static_cast<QResizeEvent*>(event)->size().width());
             }
         }
@@ -453,7 +487,7 @@ namespace ui::navigation {
 
     void NavigationPanel::triggerCrossWindowPortal(NavigationFlyout* flyout, QWidget* anchorWidget, NavigationTreeItem* prevOwner, NavigationTreeItem* curClone)
     {
-        if (m_position != NavigationPosition::Top || !m_indicator || !flyout || !curClone)
+        if (m_orientation != Orientation::Horizontal || !m_indicator || !flyout || !curClone)
             return;
 
         m_flyoutCloseIntent = FlyoutCloseIntent::PortalReturn;
@@ -480,10 +514,10 @@ namespace ui::navigation {
         const QPointF globalStartTopLeft = this->mapToGlobal(topHostStartRect.topLeft().toPoint());
         const QRectF globalStartRect(globalStartTopLeft, topHostStartRect.size());
 
-        // 顶栏指示条：从顶栏当前原位置向左收缩（Top 宿主收缩分支）
+        // 顶栏指示条：从顶栏当前原位置向左收缩（Horizontal 宿主收缩分支）
         const QRectF topHostTargetRect(this->mapFromGlobal(globalTargetRect.topLeft().toPoint()), globalTargetRect.size());
 
-        // flyout 指示条：从目标位置顶部向下生长（Left 宿主生长分支）
+        // flyout 指示条：从目标位置顶部向下生长（Vertical 宿主生长分支）
         const QRectF flyoutHostStartRect(flyout->mapFromGlobal(globalStartRect.topLeft().toPoint()), globalStartRect.size());
         const QRectF itemInFlyoutHost = flyout->indicatorRectInHost(curClone);
 
@@ -545,9 +579,9 @@ namespace ui::navigation {
                 animateFlyoutClosed(categoryKey, anchorWidget);
             });
 
-        // Top 模式下：若选中项属于当前分类子树，待 flyout 完全定位后触发跨窗口联合传送门
+        // Horizontal 模式下：若选中项属于当前分类子树，待 flyout 完全定位后触发跨窗口联合传送门
         // 须在 opened 后触发：flyout 定位/布局完成前 selectedItem 几何不准，且可能翻转（m_flippedUp）
-        if (m_position == NavigationPosition::Top && m_indicator && m_tree->isAncestorOf(m_tree->currentRouteKey(), categoryKey)) {
+        if (m_orientation == Orientation::Horizontal && m_indicator && m_tree->isAncestorOf(m_tree->currentRouteKey(), categoryKey)) {
             connect(flyout, &NavigationFlyout::opened, this,
                 [this, flyout, anchorWidget]() {
                     if (NavigationTreeItem* curClone = flyout->cloneItemFor(m_tree->currentRouteKey())) {
@@ -558,13 +592,13 @@ namespace ui::navigation {
 
         flyout->addLightDismissPassthrough(this); // 允许侧边栏内的点击直接穿透（实现无缝切换）
 
-        if (m_position == NavigationPosition::Top) {
-            // Top 模式：flyout 顶部紧贴 panel 下外边缘，X 对齐锚点水平中心，向下滑入
+        if (m_orientation == Orientation::Horizontal) {
+            // Horizontal 模式：flyout 顶部紧贴 panel 下外边缘，X 对齐锚点水平中心，向下滑入
             flyout->setPlacement(NavigationFlyout::Placement::Bottom);
             flyout->showAt(anchorWidget);
         }
         else {
-            // Left 紧凑模式：flyout 左边紧贴 panel 右外边缘，Y 垂直居中于锚点
+            // Vertical 紧凑模式：flyout 左边紧贴 panel 右外边缘，Y 垂直居中于锚点
             flyout->setPlacement(NavigationFlyout::Placement::Right);
             flyout->showAt(anchorWidget);
         }
@@ -626,8 +660,8 @@ namespace ui::navigation {
                 animateFlyoutClosed(QString(), anchorWidget);
             });
 
-        // Top 模式下：若选中项在溢出列表中，待 flyout 完全定位后触发跨窗口联合传送门
-        if (m_position == NavigationPosition::Top && m_indicator) {
+        // Horizontal 模式下：若选中项在溢出列表中，待 flyout 完全定位后触发跨窗口联合传送门
+        if (m_orientation == Orientation::Horizontal && m_indicator) {
             connect(flyout, &NavigationFlyout::opened, this,
                 [this, flyout, anchorWidget]() {
                     if (NavigationTreeItem* curClone = flyout->cloneItemFor(m_tree->currentRouteKey())) {

@@ -20,7 +20,7 @@ public:
 
     QString text() const { return m_text; }
     void setExpandProgress(float progress) override;
-    void setOrientation(NavigationOrientation orientation) override;
+    void setOrientation(Orientation orientation) override;
     QSize sizeHint() const override;
 
 protected:

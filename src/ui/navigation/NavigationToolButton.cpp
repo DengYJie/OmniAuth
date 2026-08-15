@@ -19,7 +19,7 @@ namespace ui::navigation {
         // 纯图标按钮在 compact 下尺寸/图标位置不变
     }
 
-    void NavigationToolButton::setOrientation(NavigationOrientation orientation) {
+    void NavigationToolButton::setOrientation(Orientation orientation) {
         NavigationPushButton::setOrientation(orientation);
         // 基类按方向 setFixedHeight 会覆盖固定尺寸，这里重设回 48x48 方形热区
         setFixedSize(kTopBarItemHeight, kTopBarItemHeight);

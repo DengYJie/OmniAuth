@@ -51,7 +51,7 @@ namespace ui::navigation {
             }
             else if (m_animMode == AnimationMode::CrossWindowPortal) {
                 // 按宿主方向分派形态：顶栏收缩、浮层生长
-                if (m_position == NavigationPosition::Top) {
+                if (m_orientation == Orientation::Horizontal) {
                     // 左固定、右边界左移，宽度衰减到 0
                     const qreal morphW = qMax(0.0, m_startRect.width() * (1.0 - p));
                     m_currentRect = QRectF(m_startRect.x(), m_startRect.y(), morphW, m_startRect.height());
@@ -62,7 +62,7 @@ namespace ui::navigation {
                     m_currentRect = QRectF(m_targetRect.x(), m_targetRect.top(), m_targetRect.width(), growH);
                 }
             }
-            else if (m_position == NavigationPosition::Top) {
+            else if (m_orientation == Orientation::Horizontal) {
                 // 水平胶囊引入流体拉伸，模拟 WinUI 弹性
                 const qreal current_x = m_startRect.x() + (m_targetRect.x() - m_startRect.x()) * p;
                 const qreal width = m_startRect.width() + (m_targetRect.width() - m_startRect.width()) * p;
@@ -142,9 +142,9 @@ namespace ui::navigation {
         });
     }
 
-    void NavigationIndicator::setNavigationPosition(NavigationPosition pos) {
-        if (m_position == pos) return;
-        m_position = pos;
+    void NavigationIndicator::setOrientation(Orientation orientation) {
+        if (m_orientation == orientation) return;
+        m_orientation = orientation;
         update();
     }
 
@@ -249,7 +249,7 @@ namespace ui::navigation {
 
         // 几何缓冲与初始帧按宿主方向分派：顶栏收缩只需起始矩形，
         // 浮层向下生长（顶部固定、高度 0）只需覆盖目标矩形。
-        if (m_position == NavigationPosition::Top) {
+        if (m_orientation == Orientation::Horizontal) {
             m_currentRect = m_startRect;
             setGeometry(m_startRect.toRect().adjusted(-5, -5, 5, 5));
         } else {

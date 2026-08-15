@@ -38,7 +38,7 @@ namespace ui::navigation {
     }
 
     QSize NavigationPushButton::sizeHint() const {
-        if (m_orientation == NavigationOrientation::Horizontal) {
+        if (m_orientation == Orientation::Horizontal) {
             if (isFooterItem() || m_text.isEmpty()) {
                 return QSize(kTopBarItemHeight, kTopBarItemHeight);
             }
@@ -60,7 +60,7 @@ namespace ui::navigation {
     }
 
     int NavigationPushButton::iconDrawX() const {
-        if (m_orientation == NavigationOrientation::Horizontal) {
+        if (m_orientation == Orientation::Horizontal) {
             if (isFooterItem() || m_text.isEmpty()) {
                 return qMax(0, (width() - m_iconSize) / 2);
             }
@@ -84,7 +84,7 @@ namespace ui::navigation {
         QColor bg = currentBackgroundColor();
         if (bg.alpha() > 0) {
             QRectF itemRect;
-            if (m_orientation == NavigationOrientation::Horizontal) {
+            if (m_orientation == Orientation::Horizontal) {
                 if (m_text.isEmpty() || isFooterItem()) {
                     // Top 纯图标/Footer 项：1:1 正方形卡片
                     const int cardSize = height() - kItemBgPaddingV * 2;
@@ -121,7 +121,7 @@ namespace ui::navigation {
         }
 
         const float alpha = currentTextAlpha();
-        if (alpha > 0.0f && !m_text.isEmpty() && !(m_orientation == NavigationOrientation::Horizontal && isFooterItem())) {
+        if (alpha > 0.0f && !m_text.isEmpty() && !(m_orientation == Orientation::Horizontal && isFooterItem())) {
             painter.setFont(themeFont(m_isSelected ? Typography::FontRole::BodyStrong
                 : Typography::FontRole::Body).toQFont());
             QColor textCol = colors.textPrimary;
@@ -130,7 +130,7 @@ namespace ui::navigation {
 
             int textLeft = 0;
             int maxTextWidth = 0;
-            if (m_orientation == NavigationOrientation::Horizontal) {
+            if (m_orientation == Orientation::Horizontal) {
                 textLeft = kTopBarItemHorizontalPadding;
                 if (!m_iconGlyph.isEmpty()) {
                     textLeft += m_iconSize + kTopBarButtonSpacing;

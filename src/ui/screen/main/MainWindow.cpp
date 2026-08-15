@@ -38,7 +38,7 @@ void MainWindow::initWindow() {
 
     // 主系统采用顶部导航栏
     navigationView()->setDisplayMode(fluent::navigation::NavigationView::DisplayMode::Auto);
-    panel()->setNavigationPosition(ui::navigation::NavigationPosition::Left);
+    panel()->setOrientation(ui::navigation::Orientation::Vertical);
 }
 
 void MainWindow::buildNavigation() {

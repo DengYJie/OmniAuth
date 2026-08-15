@@ -16,6 +16,10 @@
 class QPaintEvent;
 class QShowEvent;
 
+namespace fluent::navigation {
+class NavigationView;
+}
+
 namespace ui::navigation {
 
 class NavigationIndicator;
@@ -99,6 +103,12 @@ public:
     NavigationToolButton* backButton() const { return m_backButton; }
     NavigationToolButton* paneToggleButton() const { return m_menuButton; }
 
+    /**
+     * @brief 显式注入关联的 NavigationView，替代 parentWidget 隐式查找
+     * @param view 关联的 NavigationView，可为 nullptr 以解除关联
+     */
+    void setNavigationView(fluent::navigation::NavigationView* view);
+
     bool isBackButtonVisible() const;
     void setBackButtonVisible(bool visible);
 
@@ -113,8 +123,8 @@ public:
     bool isCompacted() const { return m_isCompacted; }
     void setCompacted(bool compacted, bool animated = true);
 
-    void setNavigationPosition(NavigationPosition position);
-    NavigationPosition navigationPosition() const { return m_position; }
+    void setOrientation(Orientation orientation);
+    Orientation orientation() const { return m_orientation; }
 
     void togglePane();
 
@@ -131,9 +141,7 @@ public:
 signals:
     /// 切页的唯一驱动源，由树统一广播
     void itemSelected(const QString& routeKey);
-    void togglePaneRequested();
     void backRequested();
-    void displayModeChanged(bool isCompacted);
     void compactedChanged(bool compacted);
     void backButtonVisibleChanged(bool visible);
     void backEnabledChanged(bool enabled);
@@ -152,6 +160,9 @@ protected:
 private:
     void setupUi();
     void setSurfaceVisible(bool visible);
+    /// 按 NavigationView 显示模式同步方向与面板开合
+    void applyDisplayMode(int mode);
+    void applyPaneDensity();
     void showFlyoutMenu(const QString& categoryKey, QWidget* anchorWidget);
     void showOverflowMenu(QWidget* anchorWidget, const QVector<NavigationOverflowEntry>& entries);
     void closeFlyoutMenu(bool animated = true);
@@ -171,7 +182,7 @@ private:
     bool m_isCompacted = false;
     bool m_surfaceVisible = false;
     float m_expandProgress = 1.0f;
-    NavigationPosition m_position = NavigationPosition::Left;
+    Orientation m_orientation = Orientation::Vertical;
 
     QBoxLayout* m_layout = nullptr;
     QBoxLayout* m_headerLayout = nullptr;
@@ -179,6 +190,8 @@ private:
     NavigationToolButton* m_menuButton = nullptr;
     NavigationTreeWidget* m_tree = nullptr;
     NavigationIndicator* m_indicator = nullptr;
+    // 显式关联的 NavigationView，销毁后自动置空
+    QPointer<fluent::navigation::NavigationView> m_navigationView = nullptr;
     QWidget* m_userCardContainer = nullptr;
     QBoxLayout* m_userCardLayout = nullptr;
     QPointer<NavigationTreeItem> m_indicatorOwner;

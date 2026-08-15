@@ -20,14 +20,6 @@ struct NavigationOverflowEntry {
 };
 
 /**
- * @brief 导航窗格布局位置 (NavigationView PanePosition)
- */
-enum class NavigationPosition {
-    Top,    // 顶部水平导航栏模式
-    Left    // 左侧侧边栏导航模式
-};
-
-/**
  * @brief 导航条目归属区域 (MenuItems vs FooterMenuItems)
  */
 enum class NavigationItemPosition {
@@ -36,21 +28,14 @@ enum class NavigationItemPosition {
 };
 
 /**
- * @brief 条目自身的排列方向
+ * @brief 面板布局与条目排列方向
  *
- * 与面板 NavigationPosition 正交：Top 栏中的项横向排列，Left 栏与 flyout 中的项纵向排列。
+ * Horizontal 对应顶栏布局（项横向排列），Vertical 对应侧边栏与 flyout（项纵向排列）。
  */
-enum class NavigationOrientation {
-    Horizontal,   // 横向排列（Top 栏中的项）
-    Vertical      // 纵向排列（Left 栏 / flyout 中的项）
+enum class Orientation {
+    Horizontal,   // 横向排列（顶栏中的项）
+    Vertical      // 纵向排列（侧边栏 / flyout 中的项）
 };
-
-/// 面板位置 → 条目排列方向（Top→横向，Left→纵向）
-constexpr NavigationOrientation orientationFor(NavigationPosition position) {
-    return position == NavigationPosition::Top
-        ? NavigationOrientation::Horizontal
-        : NavigationOrientation::Vertical;
-}
 
 /**
  * @name 导航布局度量标准

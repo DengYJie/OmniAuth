@@ -1,4 +1,4 @@
-#include "ui/navigation/NavigationTreeItem.h"
+﻿#include "ui/navigation/NavigationTreeItem.h"
 
 #include <QAccessible>
 #include <QEasingCurve>
@@ -115,7 +115,7 @@ namespace ui::navigation {
         }
     }
 
-    void NavigationTreeItem::setOrientation(NavigationOrientation orientation)
+    void NavigationTreeItem::setOrientation(Orientation orientation)
     {
         NavigationPushButton::setOrientation(orientation);
     }
@@ -138,7 +138,7 @@ namespace ui::navigation {
 
     float NavigationTreeItem::currentTextAlpha() const
     {
-        if (m_orientation == NavigationOrientation::Horizontal) {
+        if (m_orientation == Orientation::Horizontal) {
             return 1.0f;
         }
         return NavigationPushButton::currentTextAlpha() * m_expandProgress;
@@ -146,7 +146,7 @@ namespace ui::navigation {
 
     int NavigationTreeItem::iconDrawX() const
     {
-        if (m_orientation == NavigationOrientation::Horizontal) {
+        if (m_orientation == Orientation::Horizontal) {
             return NavigationPushButton::iconDrawX();
         }
         const qreal expandedLeft = kRowLeftInset + kContentStart + m_nodeDepth * themeSpacing().large * m_expandProgress;
@@ -161,7 +161,7 @@ namespace ui::navigation {
     QSize NavigationTreeItem::sizeHint() const
     {
         QSize baseSize = NavigationPushButton::sizeHint();
-        if (m_orientation == NavigationOrientation::Horizontal && isCategory()) {
+        if (m_orientation == Orientation::Horizontal && isCategory()) {
             baseSize.rwidth() += kChevronRightInset + kChevronAreaWidth;
         }
         return baseSize;

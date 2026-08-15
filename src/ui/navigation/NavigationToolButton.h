@@ -27,7 +27,7 @@ public:
     void setCompacted(bool compacted) override;
 
     /// 方向切换后保持 48x48 固定尺寸（基类按行高 setFixedHeight 会破坏锁定尺寸）
-    void setOrientation(NavigationOrientation orientation) override;
+    void setOrientation(Orientation orientation) override;
 
     void setAnimatedMove(bool enable) { m_animatedMove = enable; }
     bool isAnimatedMove() const { return m_animatedMove; }

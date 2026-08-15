@@ -36,7 +36,7 @@ public:
      */
     static bool isReducedMotion();
 
-    bool isCompacted() const { return m_orientation == NavigationOrientation::Vertical && m_isCompacted; }
+    bool isCompacted() const { return m_orientation == Orientation::Vertical && m_isCompacted; }
     virtual void setCompacted(bool compacted);
 
     bool isSelected() const { return m_isSelected; }
@@ -55,15 +55,15 @@ public:
     float hoverProgress() const { return m_hoverProgress; }
     void setHoverProgress(float progress);
 
-    float expandProgress() const { return m_orientation == NavigationOrientation::Horizontal ? 1.0f : m_expandProgress; }
+    float expandProgress() const { return m_orientation == Orientation::Horizontal ? 1.0f : m_expandProgress; }
     /**
      * @brief 设置展开/折叠插值进度
      * @param progress 0.0 为 Compact，1.0 为 Expanded
      */
     virtual void setExpandProgress(float progress);
 
-    NavigationOrientation orientation() const { return m_orientation; }
-    virtual void setOrientation(NavigationOrientation orientation);
+    Orientation orientation() const { return m_orientation; }
+    virtual void setOrientation(Orientation orientation);
 
     virtual QRectF indicatorRect() const;
 
@@ -121,7 +121,7 @@ protected:
 
     float m_hoverProgress = 0.0f;
     float m_expandProgress = 1.0f;
-    NavigationOrientation m_orientation = NavigationOrientation::Vertical;
+    Orientation m_orientation = Orientation::Vertical;
 
     QVariantAnimation* m_hoverAnimation = nullptr;
 

@@ -1,6 +1,5 @@
 #include "ui/window/NavigationWindow.h"
 #include <FluentQt/Navigation.h>
-#include <QTimer>
 
 #include "ui/navigation/NavigationIndicator.h"
 #include "ui/navigation/NavigationPanel.h"
@@ -18,36 +17,9 @@ void NavigationWindow::initNavigation() {
     m_navigationView = new fluent::navigation::NavigationView(this);
     m_navigationView->setDisplayMode(fluent::navigation::NavigationView::DisplayMode::Auto);
 
-    // 单一导航面板：同时承载 main + footer（+ 顶部汉堡折叠入口）。
     m_panel = new ui::navigation::NavigationPanel(m_navigationView);
     m_navigationView->setMainChromeWidget(m_panel);
-
-
-    connect(m_navigationView, &fluent::navigation::NavigationView::paneOpenChanged,
-        this, [this](bool) { applyNavigationPaneDensity(); });
-
-    // 汉堡 → setPaneOpen。
-    connect(m_panel, &ui::navigation::NavigationPanel::togglePaneRequested,
-        this, [this]() {
-            if (m_navigationView) {
-                m_navigationView->setPaneOpen(!m_navigationView->isPaneOpen());
-            }
-        });
-
-    connect(m_navigationView, &fluent::navigation::NavigationView::effectiveDisplayModeChanged,
-        this, [this](fluent::navigation::NavigationView::DisplayMode mode) {
-            if (!m_panel || !m_navigationView) return;
-            
-            m_panel->setNavigationPosition(
-                mode == fluent::navigation::NavigationView::DisplayMode::Top
-                    ? ui::navigation::NavigationPosition::Top
-                    : ui::navigation::NavigationPosition::Left);
-
-            m_navigationView->setPaneOpen(
-                mode == fluent::navigation::NavigationView::DisplayMode::Left
-                || mode == fluent::navigation::NavigationView::DisplayMode::Top);
-            applyNavigationPaneDensity();
-        });
+    m_panel->setNavigationView(m_navigationView);
 
     connect(m_panel, &ui::navigation::NavigationPanel::itemSelected, this, [this](const QString& routeKey) {
         switchTo(routeKey);
@@ -60,33 +32,7 @@ void NavigationWindow::initNavigation() {
                 m_panel->setCurrentItem(routeKey);
         });
 
-    const auto initialMode = m_navigationView->effectiveDisplayMode();
-    const bool initialPaneOpen = (initialMode == fluent::navigation::NavigationView::DisplayMode::Left
-                                  || initialMode == fluent::navigation::NavigationView::DisplayMode::Top);
-    
-    m_panel->setNavigationPosition(
-        initialMode == fluent::navigation::NavigationView::DisplayMode::Top
-            ? ui::navigation::NavigationPosition::Top
-            : ui::navigation::NavigationPosition::Left);
-
-    m_navigationView->setPaneOpen(initialPaneOpen);
-    setNavigationPanesCompact(!initialPaneOpen, false);
-
     setContentWidget(m_navigationView);
-}
-
-void NavigationWindow::setNavigationPanesCompact(bool compact, bool animated) {
-    if (m_panel) {
-        m_panel->setCompacted(compact, animated);
-    }
-}
-
-void NavigationWindow::applyNavigationPaneDensity() {
-    if (!m_navigationView) return;
-
-    // 我们不再需要 hacky 的延时定时器，因为现在 NavigationPanel 的 compact 进度
-    // 是在其 resizeEvent 中严格通过物理宽度计算的，自然能与布局转场完美同步。
-    setNavigationPanesCompact(!m_navigationView->isPaneOpen(), m_navigationView->isAnimationEnabled());
 }
 
 void NavigationWindow::addSectionHeader(const QString& text) {

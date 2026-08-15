@@ -139,10 +139,10 @@ namespace ui::navigation {
         bool isCompacted() const { return m_isCompacted; }
 
         /**
-         * @brief 设置导航位置模式（Left / Top）
+         * @brief 设置面板布局方向（Horizontal / Vertical）
          */
-        void setNavigationPosition(NavigationPosition position);
-        NavigationPosition navigationPosition() const { return m_position; }
+        void setOrientation(Orientation orientation);
+        Orientation orientation() const { return m_orientation; }
 
         /// 标记节点为 flyout 内克隆节点：点击分类时内联展开而非再弹 flyout
         void setInlineExpansion(bool inlineMode) { m_inlineExpansion = inlineMode; }
@@ -256,7 +256,7 @@ namespace ui::navigation {
         /// 展开终态：按折叠前快照恢复所有分类展开态
         void restoreAllCategories();
         void propagateExpandProgress(float progress);
-        void propagateNavigationPosition(NavigationPosition position);
+        void propagateOrientation(Orientation orientation);
 
         bool isSelectedUnder(NavigationTreeWidget* node) const;
         // 溢出计算（Top 模式）
@@ -281,7 +281,7 @@ namespace ui::navigation {
         QHash<QString, bool> m_savedExpandStates;
         /// 是否为 flyout 内克隆节点：分类点击走内联展开而非 flyout 模式
         bool m_inlineExpansion = false;
-        NavigationPosition m_position = NavigationPosition::Left;
+        Orientation m_orientation = Orientation::Vertical;
         fluent::scrolling::ScrollView* m_scrollView = nullptr;
 
         // 溢出状态（Top 模式）
