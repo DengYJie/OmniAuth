@@ -94,6 +94,7 @@ namespace ui::navigation {
         void mouseReleaseEvent(QMouseEvent* event) override;
         float currentTextAlpha() const override;
         int iconDrawX() const override;
+        int textRightOffset() const override;
         QSize sizeHint() const override;
         QRectF chevronRect() const;
         bool chevronVisible() const;

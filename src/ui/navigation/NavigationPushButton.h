@@ -35,6 +35,9 @@ protected:
     /// 随折叠进度消除子项缩进以契合 48px 紧凑栏
     virtual int iconDrawX() const;
 
+    /// 允许子类为右侧元素（如展开箭头、未读红点）预留文本排版空间
+    virtual int textRightOffset() const { return 0; }
+
 protected:
     QString m_iconGlyph;
     QString m_text;

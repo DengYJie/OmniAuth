@@ -1,4 +1,4 @@
-﻿#include "ui/navigation/NavigationTreeItem.h"
+#include "ui/navigation/NavigationTreeItem.h"
 
 #include <QAccessible>
 #include <QEasingCurve>
@@ -156,6 +156,14 @@ namespace ui::navigation {
         return qRound(expandedLeft);
     }
 
+    int NavigationTreeItem::textRightOffset() const
+    {
+        if (m_orientation == Orientation::Horizontal) {
+            return chevronVisible() ? kTopChevronAddedWidth : 0;
+        }
+        return chevronVisible() ? (kChevronAreaWidth + kChevronRightInset) : 0;
+    }
+
     QRectF NavigationTreeItem::indicatorRect() const
     {
         return NavigationPushButton::indicatorRect();
@@ -165,7 +173,7 @@ namespace ui::navigation {
     {
         QSize baseSize = NavigationPushButton::sizeHint();
         if (m_orientation == Orientation::Horizontal && isCategory()) {
-            baseSize.rwidth() += kChevronRightInset + kChevronAreaWidth;
+            baseSize.rwidth() += kTopChevronAddedWidth;
         }
         return baseSize;
     }
@@ -225,6 +233,8 @@ namespace ui::navigation {
     {
         if (!isCategory())
             return false;
+        if (m_orientation == Orientation::Horizontal)
+            return true;
         return m_expandProgress > 0.01f;
     }
 

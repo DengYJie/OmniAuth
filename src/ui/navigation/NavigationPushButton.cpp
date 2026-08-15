@@ -135,11 +135,11 @@ namespace ui::navigation {
                 if (!m_iconGlyph.isEmpty()) {
                     textLeft += m_iconSize + kTopBarButtonSpacing;
                 }
-                maxTextWidth = qMax(0, width() - textLeft - kTopBarItemHorizontalPadding);
+                maxTextWidth = qMax(0, width() - textLeft - textRightOffset() - kTopBarItemHorizontalPadding);
             }
             else {
                 textLeft = kTextLeftOffset + qRound(m_nodeDepth * spacing.large * m_expandProgress);
-                maxTextWidth = qMax(0, width() - textLeft - spacing.small);
+                maxTextWidth = qMax(0, width() - textLeft - textRightOffset() - spacing.small);
             }
             painter.drawText(QRect(textLeft, 0, maxTextWidth, height()),
                 Qt::AlignVCenter | Qt::AlignLeft | Qt::TextSingleLine,

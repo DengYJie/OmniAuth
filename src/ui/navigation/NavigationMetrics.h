@@ -59,6 +59,8 @@ constexpr int kIconAreaWidth = Typography::IconSize::Standard;
 // 对齐 WinUI3 ExpandCollapseChevron 点击区域 40px
 constexpr int kChevronAreaWidth = 40;
 constexpr int kChevronRightInset = 6;
+// Top 模式分类箭头所需占据的额外布局宽度
+constexpr int kTopChevronAddedWidth = 30;
 // chevron 紧凑指示符使用 12px 原生字形
 constexpr int kChevronIconPixelSize = Typography::IconSize::Compact;
 constexpr int kSelectionIndicatorWidth = 3;
