@@ -8,6 +8,8 @@
 #include <FluentQt/Windowing.h>
 #include <FluentQt/BasicInput.h>
 
+#include "TitleBar.h"
+
 #include <QWKCore/windowagentbase.h>
 #include <QWKWidgets/widgetwindowagent.h>
 
@@ -40,7 +42,7 @@ public:
     /**
      * @brief 获取标题栏控件。用于自定义添加额外标题栏动作或组件。
      */
-    fluent::windowing::TitleBar* titleBar() const { return m_titleBar; }
+    ui::window::TitleBar* titleBar() const { return m_titleBar; }
 
     /**
      * @brief 获取内容区容器控件。
@@ -96,25 +98,16 @@ private:
     void setupUi();
     void setupWindowKit();
     void applyPlatformWindowAttributes();
-    void setupCaptionButtons();
-    void syncCaptionButtons();
-    void syncCaptionButtonActivation(bool active);
-    void updateMaximizeButtonIcon();
 
     bool event(QEvent* event) override;
 
     QVBoxLayout* m_rootLayout = nullptr;
-    fluent::windowing::TitleBar* m_titleBar = nullptr;
+    ui::window::TitleBar* m_titleBar = nullptr;
     QWidget* m_contentHost = nullptr;
     QWidget* m_contentWidget = nullptr;
 
     fluent::windowing::BackdropEffect m_backdropEffect = fluent::windowing::BackdropEffect::Solid;
     bool m_customWindowChromeEnabled = true;
-
-    QWidget* m_captionButtonHost = nullptr;
-    fluent::basicinput::Button* m_minimizeButton = nullptr;
-    fluent::basicinput::Button* m_maximizeButton = nullptr;
-    fluent::basicinput::Button* m_closeButton = nullptr;
 
     QWK::WidgetWindowAgent* m_windowAgent = nullptr;
 };

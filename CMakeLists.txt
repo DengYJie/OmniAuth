@@ -192,6 +192,7 @@ set(PROJECT_SOURCES
 
     src/ui/window/WindowBase.h
     src/ui/window/NavigationWindow.h
+    src/ui/window/TitleBar.cpp
     src/ui/window/WindowBase.cpp
     src/ui/window/NavigationWindow.cpp
 
