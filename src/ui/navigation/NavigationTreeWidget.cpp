@@ -386,7 +386,11 @@ namespace ui::navigation {
             }
             if (rootNode && rootNode->m_itemWidget) {
                 if (m_orientation == Orientation::Horizontal && isCategoryActive(rootNode->routeKey())) {
-                    return nullptr;
+                    // 若选中项是子节点，且分类展开，指示条进入 flyout，宿主栏不绘制；
+                    // 但若选中项就是顶级分类自身，即使 flyout 展开，顶级分类项也应保有指示条
+                    if (node != rootNode) {
+                        return nullptr;
+                    }
                 }
                 if (m_orientation == Orientation::Horizontal) {
                     if (!m_overflowNodes.contains(rootNode) && !rootNode->m_itemWidget->isHidden()) {
