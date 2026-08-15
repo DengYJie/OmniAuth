@@ -7,7 +7,7 @@ namespace ui::navigation {
 
 /**
  * @brief 基础图文导航按钮
- * 
+ *
  * 实现标准的 Fluent 图标+文字渲染、悬停背景及折叠过渡中的缩进插值。
  */
 class NavigationPushButton : public NavigationWidget {
@@ -32,7 +32,7 @@ public:
 protected:
     void paintEvent(QPaintEvent* event) override;
 
-    /// 随折叠进度消除子项缩进以契合 48px 紧凑栏。
+    /// 随折叠进度消除子项缩进以契合 48px 紧凑栏
     virtual int iconDrawX() const;
 
 protected:

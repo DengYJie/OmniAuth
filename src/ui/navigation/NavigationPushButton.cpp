@@ -50,7 +50,7 @@ namespace ui::navigation {
                 QFont f = themeFont(Typography::FontRole::Body).toQFont();
                 QFontMetrics fm(f);
                 if (!m_iconGlyph.isEmpty()) {
-                    w += kTopBarButtonSpacing; // icon and text spacing
+                    w += kTopBarButtonSpacing; // 图标与文字的间距
                 }
                 w += fm.horizontalAdvance(m_text);
             }

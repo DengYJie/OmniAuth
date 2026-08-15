@@ -78,10 +78,10 @@ public:
     void setAccessibleItemName(const QString& name);
 
 protected:
-    /// 首次或失效时沿父链解析一次并缓存。
+    /// 首次或失效时沿父链解析一次并缓存
     fluent::FluentElement::Theme cachedEffectiveTheme() const;
 
-    /// 绕开 themeColorsRef() 每次沿父链遍历 effectiveTheme() 的开销；引用归 ThemeRegistry 所有，仅单次 paint() 内使用。
+    /// 绕开 themeColorsRef() 每次沿父链遍历 effectiveTheme() 的开销；引用归 ThemeRegistry 所有，仅单次 paint() 内使用
     const fluent::FluentElement::Colors& colorsRef() const;
 
     void onThemeUpdated() override;
@@ -103,7 +103,7 @@ protected:
     virtual float currentTextAlpha() const;
     bool hasKeyboardFocus() const { return m_keyboardFocused; }
 
-    /// 绘制双层实线高对比度键盘焦点环。
+    /// 绘制双层实线高对比度键盘焦点环
     void drawFocusVisual(QPainter& painter, const QRectF& rect) const;
 
 protected:
@@ -111,10 +111,13 @@ protected:
     bool m_isSelected = false;
     bool m_isPressed = false;
     bool m_isHovered = false;
-    bool m_isSelectable = true;     ///< 分类项与操作按钮设为 false
-    bool m_keyboardFocused = false; ///< 仅键盘 Tab/快捷键到达时置位，控制焦点环渲染
+    /// 分类项与操作按钮设为 false
+    bool m_isSelectable = true;
+    /// 仅键盘 Tab/快捷键到达时置位，控制焦点环渲染
+    bool m_keyboardFocused = false;
     NavigationItemPosition m_itemPosition = NavigationItemPosition::Top;
-    int m_nodeDepth = 0;            ///< 用于阶梯缩进
+    /// 用于阶梯缩进
+    int m_nodeDepth = 0;
 
     float m_hoverProgress = 0.0f;
     float m_expandProgress = 1.0f;
@@ -123,7 +126,8 @@ protected:
     QVariantAnimation* m_hoverAnimation = nullptr;
 
     mutable fluent::FluentElement::Theme m_effectiveTheme = fluent::FluentElement::Theme::Light;
-    mutable bool m_themeValid = false; ///< 主题切换后失效
+    /// 主题切换后失效
+    mutable bool m_themeValid = false;
 };
 
 } // namespace ui::navigation

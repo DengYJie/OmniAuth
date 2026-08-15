@@ -57,7 +57,7 @@ void NavigationWindow::initNavigation() {
         this, [this](int index) {
             const QString routeKey = m_indexToRouteMap.value(index);
             if (!routeKey.isEmpty() && m_panel)
-                m_panel->setCurrentItem(routeKey, true);
+                m_panel->setCurrentItem(routeKey);
         });
 
     const auto initialMode = m_navigationView->effectiveDisplayMode();

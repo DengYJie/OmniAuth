@@ -14,241 +14,250 @@
 
 namespace ui::navigation {
 
-NavigationTreeItem::NavigationTreeItem(const QString& routeKey,
-                                       const QString& iconGlyph,
-                                       const QString& text,
-                                       Kind kind,
-                                       int depth,
-                                       bool selectable,
-                                       QWidget* parent)
-    : NavigationPushButton(iconGlyph, text, /*isSelectable=*/selectable, parent)
-    , m_routeKey(routeKey)
-    , m_kind(kind)
-{
-    setNodeDepth(depth);
-    setSelectable(selectable);
+    NavigationTreeItem::NavigationTreeItem(const QString& routeKey,
+        const QString& iconGlyph,
+        const QString& text,
+        Kind kind,
+        int depth,
+        bool selectable,
+        QWidget* parent)
+        : NavigationPushButton(iconGlyph, text, /*isSelectable=*/selectable, parent)
+        , m_routeKey(routeKey)
+        , m_kind(kind)
+    {
+        setNodeDepth(depth);
+        setSelectable(selectable);
 
-    if (!text.isEmpty())
-        setAccessibleItemName(text);
-    notifyAccessibleRoleChange();
+        if (!text.isEmpty())
+            setAccessibleItemName(text);
+        notifyAccessibleRoleChange();
 
-    // chevron 旋转动画：展开 0°→180°（分类箭头向下展开）。
-    m_rotateAnimation = new QVariantAnimation(this);
-    m_rotateAnimation->setDuration(themeAnimation().fast);
-    m_rotateAnimation->setEasingCurve(QEasingCurve::OutQuad);
-    connect(m_rotateAnimation, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
-        setArrowAngle(v.toFloat());
-    });
+        // chevron 旋转动画：展开 0°→180°（分类箭头向下展开）
+        m_rotateAnimation = new QVariantAnimation(this);
+        m_rotateAnimation->setDuration(themeAnimation().fast);
+        m_rotateAnimation->setEasingCurve(themeAnimation().decelerate);
+        connect(m_rotateAnimation, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
+            setArrowAngle(v.toFloat());
+            });
 
-    // 点击统一走基类：叶子上报指示条 + 请求切页；分类切换展开。
-    connect(this, &NavigationWidget::clicked, this, &NavigationTreeItem::onClicked);
-}
+        // 点击统一走基类：叶子上报指示条 + 请求切页；分类切换展开
+        connect(this, &NavigationWidget::clicked, this, &NavigationTreeItem::onClicked);
+    }
 
-void NavigationTreeItem::setAccessibleItemName(const QString& name)
-{
-    if (name.isEmpty())
-        return;
-    setAccessibleName(name);
-    QAccessibleEvent nameEvent(this, QAccessible::NameChanged);
-    QAccessible::updateAccessibility(&nameEvent);
-}
+    void NavigationTreeItem::setAccessibleItemName(const QString& name)
+    {
+        if (name.isEmpty())
+            return;
+        setAccessibleName(name);
+        QAccessibleEvent nameEvent(this, QAccessible::NameChanged);
+        QAccessible::updateAccessibility(&nameEvent);
+    }
 
-QAccessible::Role NavigationTreeItem::accessibleRole() const
-{
-    // 分类项向读屏器暴露为 TreeItem 语义，叶子项暴露为 Button 语义
-    return isCategory() ? QAccessible::TreeItem : QAccessible::Button;
-}
+    QAccessible::Role NavigationTreeItem::accessibleRole() const
+    {
+        return isCategory() ? QAccessible::TreeItem : QAccessible::Button;
+    }
 
-void NavigationTreeItem::notifyAccessibleRoleChange()
-{
-    QAccessibleEvent roleEvent(this, QAccessible::RoleChanged);
-    QAccessible::updateAccessibility(&roleEvent);
-}
+    void NavigationTreeItem::notifyAccessibleRoleChange()
+    {
+        QAccessibleEvent roleEvent(this, QAccessible::RoleChanged);
+        QAccessible::updateAccessibility(&roleEvent);
+    }
 
-void NavigationTreeItem::notifyAccessibleState(const QAccessible::State& state)
-{
-    // 向无障碍辅助工具同步状态位变化（选中、展开/折叠）
-    QAccessibleStateChangeEvent change(this, state);
-    QAccessible::updateAccessibility(&change);
-}
+    void NavigationTreeItem::notifyAccessibleState(const QAccessible::State& state)
+    {
+        // 向无障碍辅助工具同步状态位变化（选中、展开/折叠）
+        QAccessibleStateChangeEvent change(this, state);
+        QAccessible::updateAccessibility(&change);
+    }
 
-void NavigationTreeItem::setSelected(bool selected)
-{
-    if (isSelected() == selected)
-        return;
-    NavigationPushButton::setSelected(selected);
-    QAccessible::State st;
-    st.selected = selected;
-    notifyAccessibleState(st);
-}
+    void NavigationTreeItem::setSelected(bool selected)
+    {
+        if (isSelected() == selected)
+            return;
+        NavigationPushButton::setSelected(selected);
+        QAccessible::State st;
+        st.selected = selected;
+        notifyAccessibleState(st);
+    }
 
-void NavigationTreeItem::setExpanded(bool expanded, bool animated)
-{
-    if (!isCategory())
-        return;
+    void NavigationTreeItem::setExpanded(bool expanded, bool animated)
+    {
+        if (!isCategory())
+            return;
 
-    const float target = expanded ? 180.0f : 0.0f;
-    if (!animated) {
-        setArrowAngle(target);
+        const float target = expanded ? 180.0f : 0.0f;
+        if (!animated) {
+            setArrowAngle(target);
+            update();
+        }
+        else {
+            animateChevron(target);
+        }
+
+        QAccessible::State st;
+        st.expanded = expanded;
+        st.collapsed = !expanded;
+        notifyAccessibleState(st);
+    }
+
+    void NavigationTreeItem::animateChevron(float target)
+    {
+        if (NavigationWidget::isReducedMotion()) {
+            setArrowAngle(target);
+            update();
+        }
+        else {
+            m_rotateAnimation->stop();
+            m_rotateAnimation->setStartValue(m_arrowAngle);
+            m_rotateAnimation->setEndValue(target);
+            m_rotateAnimation->start();
+        }
+    }
+
+    void NavigationTreeItem::setOrientation(NavigationOrientation orientation)
+    {
+        NavigationPushButton::setOrientation(orientation);
+    }
+
+    void NavigationTreeItem::setShowIndicator(bool show)
+    {
+        if (m_showIndicator == show)
+            return;
+        m_showIndicator = show;
         update();
-    } else {
-        animateChevron(target);
     }
 
-    QAccessible::State st;
-    st.expanded = expanded;
-    st.collapsed = !expanded;
-    notifyAccessibleState(st);
-}
-
-void NavigationTreeItem::animateChevron(float target)
-{
-    if (NavigationWidget::isReducedMotion()) {
-        setArrowAngle(target);
+    void NavigationTreeItem::setArrowAngle(float angle)
+    {
+        if (qFuzzyCompare(angle, m_arrowAngle))
+            return;
+        m_arrowAngle = angle;
         update();
-    } else {
-        m_rotateAnimation->stop();
-        m_rotateAnimation->setStartValue(m_arrowAngle);
-        m_rotateAnimation->setEndValue(target);
-        m_rotateAnimation->start();
     }
-}
 
-void NavigationTreeItem::setOrientation(NavigationOrientation orientation)
-{
-    NavigationPushButton::setOrientation(orientation);
-}
-
-void NavigationTreeItem::setArrowAngle(float angle)
-{
-    if (qFuzzyCompare(angle, m_arrowAngle))
-        return;
-    m_arrowAngle = angle;
-    update();
-}
-
-float NavigationTreeItem::currentTextAlpha() const
-{
-    if (m_orientation == NavigationOrientation::Horizontal) {
-        return 1.0f;
+    float NavigationTreeItem::currentTextAlpha() const
+    {
+        if (m_orientation == NavigationOrientation::Horizontal) {
+            return 1.0f;
+        }
+        return NavigationPushButton::currentTextAlpha() * m_expandProgress;
     }
-    return NavigationPushButton::currentTextAlpha() * m_expandProgress;
-}
 
-int NavigationTreeItem::iconDrawX() const
-{
-    if (m_orientation == NavigationOrientation::Horizontal) {
-        return NavigationPushButton::iconDrawX();
+    int NavigationTreeItem::iconDrawX() const
+    {
+        if (m_orientation == NavigationOrientation::Horizontal) {
+            return NavigationPushButton::iconDrawX();
+        }
+        const qreal expandedLeft = kRowLeftInset + kContentStart + m_nodeDepth * themeSpacing().large * m_expandProgress;
+        return qRound(expandedLeft);
     }
-    const qreal expandedLeft = kRowLeftInset + kContentStart + m_nodeDepth * themeSpacing().large * m_expandProgress;
-    return qRound(expandedLeft);
-}
 
-QRectF NavigationTreeItem::indicatorRect() const
-{
-    return NavigationPushButton::indicatorRect();
-}
-
-QSize NavigationTreeItem::sizeHint() const
-{
-    QSize baseSize = NavigationPushButton::sizeHint();
-    if (m_orientation == NavigationOrientation::Horizontal && isCategory()) {
-        baseSize.rwidth() += kChevronRightInset + kChevronAreaWidth;
+    QRectF NavigationTreeItem::indicatorRect() const
+    {
+        return NavigationPushButton::indicatorRect();
     }
-    return baseSize;
-}
 
-void NavigationTreeItem::onClicked()
-{
-    emit itemClicked(m_routeKey, /*chevronClicked=*/false);
-}
+    QSize NavigationTreeItem::sizeHint() const
+    {
+        QSize baseSize = NavigationPushButton::sizeHint();
+        if (m_orientation == NavigationOrientation::Horizontal && isCategory()) {
+            baseSize.rwidth() += kChevronRightInset + kChevronAreaWidth;
+        }
+        return baseSize;
+    }
 
-void NavigationTreeItem::paintEvent(QPaintEvent* event)
-{
-    NavigationPushButton::paintEvent(event);
+    void NavigationTreeItem::onClicked()
+    {
+        emit itemClicked(m_routeKey, /*chevronClicked=*/false);
+    }
 
-    // 由 m_showIndicator 而非 isSelected()/expandProgress 控制：折叠时父分类需代理绘制指示条
-    if (m_showIndicator) {
+    void NavigationTreeItem::paintEvent(QPaintEvent* event)
+    {
+        NavigationPushButton::paintEvent(event);
+
+        // 由 m_showIndicator 而非 isSelected()/expandProgress 控制：折叠时父分类需代理绘制指示条
+        if (m_showIndicator) {
+            const auto& colors = colorsRef();
+            const QRectF ir = indicatorRect();
+            QPainter painter(this);
+            painter.setRenderHint(QPainter::Antialiasing);
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(colors.accentDefault);
+            painter.drawRoundedRect(ir.adjusted(0, 0, -1, -1),
+                ::CornerRadius::Indicator, ::CornerRadius::Indicator);
+        }
+
+        if (!chevronVisible())
+            return;
+
         const auto& colors = colorsRef();
-        const QRectF ir = indicatorRect();
+        const QRectF cRect = chevronRect();
+
         QPainter painter(this);
         painter.setRenderHint(QPainter::Antialiasing);
-        painter.setPen(Qt::NoPen);
-        painter.setBrush(colors.accentDefault);
-        painter.drawRoundedRect(ir.adjusted(0, 0, -1, -1),
-                                ::CornerRadius::Indicator, ::CornerRadius::Indicator);
+        painter.setFont(Typography::Icons::font(kChevronIconPixelSize));
+        painter.setPen(colors.textSecondary);
+        painter.save();
+        painter.setOpacity(m_expandProgress);
+        painter.translate(cRect.center());
+        painter.rotate(m_arrowAngle);
+        painter.translate(-cRect.center());
+        painter.drawText(cRect,
+            Qt::AlignCenter,
+            Typography::Icons::glyphForSize(Typography::Icons::ChevronDownMed,
+                kChevronIconPixelSize));
+        painter.restore();
     }
 
-    if (!chevronVisible())
-        return;
-
-    const auto& colors = colorsRef();
-    const QRectF cRect = chevronRect();
-
-    QPainter painter(this);
-    painter.setRenderHint(QPainter::Antialiasing);
-    painter.setFont(Typography::Icons::font(kChevronIconPixelSize));
-    painter.setPen(colors.textSecondary);
-    painter.save();
-    painter.setOpacity(m_expandProgress);
-    painter.translate(cRect.center());
-    painter.rotate(m_arrowAngle);
-    painter.translate(-cRect.center());
-    painter.drawText(cRect,
-                     Qt::AlignCenter,
-                     Typography::Icons::glyphForSize(Typography::Icons::ChevronDownMed,
-                                                     kChevronIconPixelSize));
-    painter.restore();
-}
-
-QRectF NavigationTreeItem::chevronRect() const
-{
-    return QRectF(width() - kChevronRightInset - kChevronAreaWidth,
-                  (height() - kChevronAreaWidth) / 2.0,
-                  kChevronAreaWidth,
-                  kChevronAreaWidth);
-}
-
-bool NavigationTreeItem::chevronVisible() const
-{
-    if (!isCategory())
-        return false;
-    return m_expandProgress > 0.01f;
-}
-
-void NavigationTreeItem::keyPressEvent(QKeyEvent* event)
-{
-    if (isCategory() && (event->key() == Qt::Key_Right || event->key() == Qt::Key_Left)) {
-        emit itemClicked(m_routeKey, /*chevronClicked=*/true);
-        event->accept();
-        return;
+    QRectF NavigationTreeItem::chevronRect() const
+    {
+        return QRectF(width() - kChevronRightInset - kChevronAreaWidth,
+            (height() - kChevronAreaWidth) / 2.0,
+            kChevronAreaWidth,
+            kChevronAreaWidth);
     }
-    NavigationPushButton::keyPressEvent(event);
-}
 
-void NavigationTreeItem::mousePressEvent(QMouseEvent* event)
-{
-    m_chevronPressActive = false;
-    if (event->button() == Qt::LeftButton && isCategory() && chevronVisible()) {
-        m_chevronPressActive = chevronRect().contains(event->pos());
+    bool NavigationTreeItem::chevronVisible() const
+    {
+        if (!isCategory())
+            return false;
+        return m_expandProgress > 0.01f;
     }
-    NavigationPushButton::mousePressEvent(event);
-}
 
-void NavigationTreeItem::mouseReleaseEvent(QMouseEvent* event)
-{
-    if (event->button() == Qt::LeftButton && m_chevronPressActive) {
-        m_chevronPressActive = false;
-        m_isPressed = false;
-        update();
-
-        if (chevronRect().contains(event->pos())) {
+    void NavigationTreeItem::keyPressEvent(QKeyEvent* event)
+    {
+        if (isCategory() && (event->key() == Qt::Key_Right || event->key() == Qt::Key_Left)) {
             emit itemClicked(m_routeKey, /*chevronClicked=*/true);
+            event->accept();
+            return;
         }
-        event->accept();
-        return;
+        NavigationPushButton::keyPressEvent(event);
     }
-    NavigationPushButton::mouseReleaseEvent(event);
-}
+
+    void NavigationTreeItem::mousePressEvent(QMouseEvent* event)
+    {
+        m_chevronPressActive = false;
+        if (event->button() == Qt::LeftButton && isCategory() && chevronVisible()) {
+            m_chevronPressActive = chevronRect().contains(event->pos());
+        }
+        NavigationPushButton::mousePressEvent(event);
+    }
+
+    void NavigationTreeItem::mouseReleaseEvent(QMouseEvent* event)
+    {
+        if (event->button() == Qt::LeftButton && m_chevronPressActive) {
+            m_chevronPressActive = false;
+            m_isPressed = false;
+            update();
+
+            if (chevronRect().contains(event->pos())) {
+                emit itemClicked(m_routeKey, /*chevronClicked=*/true);
+            }
+            event->accept();
+            return;
+        }
+        NavigationPushButton::mouseReleaseEvent(event);
+    }
 
 } // namespace ui::navigation

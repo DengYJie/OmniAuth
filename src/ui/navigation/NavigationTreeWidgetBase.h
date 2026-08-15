@@ -60,7 +60,7 @@ protected:
     NavigationTreeWidget* root();
     const NavigationTreeWidget* root() const;
 
-    /// 折叠子容器高度动画：per-node，归一化进度驱动 setFixedHeight
+    /// 折叠子容器高度动画：逐节点独立，以归一化进度驱动 setFixedHeight
     void animateChildrenContainer(bool expanded);
 
     // 节点容器成员
@@ -76,7 +76,7 @@ protected:
     bool m_isExpanded = false;
     bool m_rememberExpandState = false;
     bool m_savedExpanded = false;
-    /// per-node 折叠高度动画
+    /// 每个节点独立的折叠高度动画
     QVariantAnimation* m_heightAnimation = nullptr;
 };
 

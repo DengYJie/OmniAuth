@@ -28,13 +28,15 @@ public:
     NavigationPosition navigationPosition() const { return m_position; }
     void setNavigationPosition(NavigationPosition pos);
 
+    void setInitialPosition(const QRectF& rect);
+
     /**
      * @brief 从当前位置飞向目标几何，动画结束后自动隐藏
      * @param targetRect 宿主坐标系下的目标矩形
      */
-    void activateAt(const QRectF& targetRect, int durationMs = 0, bool animated = true);
+    void activateAt(const QRectF& targetRect, bool animated = true);
 
-    /// 立即隐藏（停止动画）。
+    /// 立即隐藏（停止动画）
     void hideIndicator();
 
     bool isFlying() const;
@@ -42,29 +44,25 @@ public:
     /**
      * @brief Portal Return: 浮层关闭后，顶栏指示条从左向右展开恢复。
      * @param targetRect 宿主坐标系下的目标矩形（恢复后的最终位置）
-     * @param durationMs 动画时长
      */
-    void playPortalReturn(const QRectF& targetRect, int durationMs = 0);
+    void playPortalReturn(const QRectF& targetRect);
 
     /**
      * @brief Cross Window Portal: 跨窗口（Top栏到Flyout浮层）同步组合动效，形态按宿主方向分派。
      * @param startRect 宿主坐标系下的起始矩形（顶栏水平条收缩起点）
      * @param targetRect 宿主坐标系下的目标矩形（浮层垂直条滑入终点）
-     * @param durationMs 动画时长
      *
      * Top 宿主（顶栏）：水平条向左收缩消失（左固定、右边界左移、宽度衰减到 0）；
      * Left 宿主（浮层）：垂直条从顶部生成向下生长（顶部固定、高度从 0 增长）。
      */
-    void playCrossWindowPortal(const QRectF& startRect, const QRectF& targetRect, int durationMs = 0);
+    void playCrossWindowPortal(const QRectF& startRect, const QRectF& targetRect);
 
     QRectF currentRect() const { return m_currentRect; }
 
 signals:
-    /// 飞行动画开始、悬浮指示条接管呈现时发出。
-    /// 宿主收到后清空常驻指示条所有权（飞行件接管绘制）。
+    /// 飞行动画开始、悬浮指示条接管呈现时发出：宿主收到后清空常驻指示条所有权
     void flightStarted();
-    /// 飞行动画结束、指示条已到达目标位置时发出。
-    /// 宿主收到后让对应 item 开始绘制常驻指示条。
+    /// 飞行动画结束、指示条已到达目标位置时发出：宿主收到后让对应 item 绘制常驻指示条
     void flightFinished();
 
 protected:
@@ -73,14 +71,14 @@ protected:
     void onThemeUpdated() override;
 
 private:
-    /// 目标与当前几何几乎重合时短路，避免无谓动画。
+    /// 目标与当前几何几乎重合时短路，避免无谓动画
     bool isSamePosition(const QRectF& targetRect) const;
-    /// 确保 Z 序在滚动区之上。
+    /// 确保 Z 序在滚动区之上
     void raiseToTop();
 
-    /// 首次或失效时沿父链解析一次并缓存。
+    /// 首次或失效时沿父链解析一次并缓存
     fluent::FluentElement::Theme cachedEffectiveTheme() const;
-    /// 绕开 themeColorsRef() 每次沿父链遍历 effectiveTheme() 的开销。
+    /// 绕开 themeColorsRef() 每次沿父链遍历 effectiveTheme() 的开销
     const fluent::FluentElement::Colors& colorsRef() const;
 
 private:
@@ -94,7 +92,7 @@ private:
     QVariantAnimation* m_flightAnimation = nullptr;
     NavigationPosition m_position = NavigationPosition::Left;
 
-    /// 当前动画模式：Normal 为标准飞行，PortalReturn为展开恢复，CrossWindowPortal为完全映射插值飞跃。
+    /// 当前动画模式：Normal 标准飞行，PortalReturn 展开恢复，CrossWindowPortal 完全映射插值飞跃
     enum class AnimationMode { Normal, PortalReturn, CrossWindowPortal };
     AnimationMode m_animMode = AnimationMode::Normal;
 };

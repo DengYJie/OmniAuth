@@ -36,15 +36,15 @@ QSize NavigationSectionHeader::sizeHint() const
     if (m_orientation == NavigationOrientation::Horizontal) {
         QFont f = themeFont(Typography::FontRole::BodyStrong).toQFont();
         QFontMetrics fm(f);
-        // text width + paddings
+        // 文字宽度 + 两侧内边距
         return QSize(fm.horizontalAdvance(m_text) + themeSpacing().medium * 2, kTopBarItemHeight);
     }
-    return QSize(0, qRound(kSectionHeight * m_expandProgress)); // Vertical mode stretches
+    return QSize(0, qRound(kSectionHeight * m_expandProgress)); // Vertical 模式随进度拉伸
 }
 
 void NavigationSectionHeader::updateCompactHeight()
 {
-    // Top 模式（Horizontal）高度对齐栏高，
+    // Top 模式（Horizontal）高度对齐栏高
     if (m_orientation == NavigationOrientation::Horizontal) {
         setFixedHeight(kTopBarItemHeight);
         return;

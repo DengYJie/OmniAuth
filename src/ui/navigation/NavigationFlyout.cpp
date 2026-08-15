@@ -1,4 +1,4 @@
-#include "ui/navigation/NavigationFlyoutPopup.h"
+#include "ui/navigation/NavigationFlyout.h"
 
 #include <functional>
 
@@ -84,7 +84,7 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
 
 } // namespace
 
-    NavigationFlyoutPopup::NavigationFlyoutPopup(NavigationTreeWidget* rootTree, QWidget* host)
+    NavigationFlyout::NavigationFlyout(NavigationTreeWidget* rootTree, QWidget* host)
         : NavigationTreeWidgetBase(rootTree, nullptr)
         , m_host(host)
     {
@@ -114,15 +114,16 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
         m_flyoutIndicator->setNavigationPosition(NavigationPosition::Left);
     }
 
-    NavigationFlyoutPopup::~NavigationFlyoutPopup()
+    NavigationFlyout::~NavigationFlyout()
     {
         // 防止 host 析构后仍指向本对象触发悬垂崩溃
         if (m_host)
             m_host->removeEventFilter(this);
     }
 
-    void NavigationFlyoutPopup::rebuildSubtree(const QString& categoryKey)
+    void NavigationFlyout::rebuildSubtree(const QString& categoryKey)
     {
+        m_itemIndex.clear();
         NavigationTreeWidget* catNode = root()->nodeFor(categoryKey);
         if (!catNode)
             return;
@@ -133,8 +134,9 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
         finalizeSize();
     }
 
-    void NavigationFlyoutPopup::rebuildSubtreeFromEntries(const QVector<NavigationOverflowEntry>& entries)
+    void NavigationFlyout::rebuildSubtreeFromEntries(const QVector<NavigationOverflowEntry>& entries)
     {
+        m_itemIndex.clear();
         // header 与节点按序插入以保留原始分区顺序；header 不参与宽度计算
         for (const auto& entry : entries) {
             if (entry.header) {
@@ -150,9 +152,9 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
         finalizeSize();
     }
 
-    void NavigationFlyoutPopup::cloneNode(NavigationTreeWidget* srcNode, NavigationTreeWidget* parentClone, int depth)
+    void NavigationFlyout::cloneNode(NavigationTreeWidget* srcNode, NavigationTreeWidget* parentClone, int depth)
     {
-        // 克隆节点挂到 flyout 下（widget 父级），m_root 仍指向原树保证切页落到原树。
+        // 克隆节点挂到 flyout 下（widget 父级），m_root 仍指向原树保证切页落到原树
         auto* node = new NavigationTreeWidget(root());
         node->setParent(this);
         node->m_routeKey = srcNode->routeKey();
@@ -160,11 +162,12 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
         node->setInlineExpansion(true);
 
         // flyout 内折叠/展开分类时，仅同步主树源节点的展开状态标志（供下次克隆恢复），
-        // 不调用 setExpanded：避免其 show 子容器到 m_mainLayout，容器显隐由导航布局统一管理。
+        // 不调用 setExpanded：避免其 show 子容器到 m_mainLayout，容器显隐由导航布局统一管理
         connect(node, &NavigationTreeWidgetBase::expansionChanged, this,
-            [root = root()](const QString& key, bool expanded) {
+            [this, root = root()](const QString& key, bool expanded) {
                 if (auto* target = root->nodeFor(key))
                     target->m_isExpanded = expanded;
+                emit expansionChanged(key, expanded);
             });
 
         const auto* srcItem = srcNode->item();
@@ -181,18 +184,15 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
         item->setIconSize(srcItem->iconSize());
         item->setTreeParent(node);
         node->m_itemWidget = item;
+        m_itemIndex.insert(item->routeKey(), item);
 
-        // 决策槽与源树一致：itemClicked 收敛到 onItemClicked；叶子切页后关闭 flyout，
-        // 分类走内联展开（onItemClicked 内联分支），不关闭。
+        // 决策槽与源树一致：叶子切页后关闭 flyout，
+        // 分类走内联展开（onItemClicked 内联分支），不关闭
         connect(item, &NavigationTreeItem::itemClicked, node,
-            [node, item, this](const QString& key, bool chevronClicked) {
+            [node, this](const QString& key, bool chevronClicked) {
                 node->onItemClicked(key, chevronClicked);
                 if (!node->isCategory()) {
                     close();
-                } else if (!chevronClicked && item->isSelectable()) {
-                    // 点击 selectable 分类项主体：更新 flyout 内选中项并通知调度层触发 Portal 动效
-                    m_selectedItem = item;
-                    emit selectableCategoryClicked(item);
                 }
             });
 
@@ -218,53 +218,121 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
             m_children.append(node);
         }
 
-        // 选中态复制：节点是当前选中项或其祖先时高亮（选中权威仍在原树）。
+        // 选中态复制：节点是当前选中项或其祖先时高亮（选中权威仍在原树）
         const QString currentKey = root()->currentRouteKey();
         if (srcNode->routeKey() == currentKey) {
             item->setSelected(true);
-            m_selectedItem = item;
         }
         else if (root()->isAncestorOf(currentKey, srcNode->routeKey())) {
             item->setSelected(true);
         }
 
-        // 递归克隆子节点。
+        // 递归克隆子节点
         for (NavigationTreeWidget* child : srcNode->children())
             cloneNode(child, node, depth + 1);
 
-        // 复制展开态：递归完成后子容器已就绪。
+        // 复制展开态：递归完成后子容器已就绪
         if (node->isCategory() && srcNode->m_isExpanded)
             node->setExpanded(true, false);
     }
 
-
-
-    void NavigationFlyoutPopup::playSelectedItemCrossPortal(NavigationTreeItem* selectedItem, const QRectF& mappedStartRect, const QRectF& targetRect)
+    void NavigationFlyout::playSelectedItemCrossPortal(NavigationTreeItem* selectedItem, const QRectF& mappedStartRect, const QRectF& targetRect)
     {
         if (!m_flyoutIndicator || !selectedItem)
             return;
 
         if (NavigationWidget::isReducedMotion()) {
-            selectedItem->setShowIndicator(true);
             return;
         }
 
-        selectedItem->setShowIndicator(false);
-        
-        qDebug() << "[NavFlyout] playSelectedItemCrossPortal item:" << selectedItem->routeKey()
-                 << "startRect:" << mappedStartRect << "targetRect:" << targetRect;
-
-        // Portal 动画不发 flightFinished，此处按动画时长对齐收尾（恢复原生指示条）
-        QTimer::singleShot(themeAnimation().normal, this, [selectedItem, this]() {
-            qDebug() << "[NavFlyout] crossPortal flight finished, enabling showIndicator on" << selectedItem->routeKey();
-            selectedItem->setShowIndicator(true);
-            m_flyoutIndicator->hide();
-        });
-
-        m_flyoutIndicator->playCrossWindowPortal(mappedStartRect, targetRect, themeAnimation().normal);
+        m_flyoutIndicator->show();
+        m_flyoutIndicator->playCrossWindowPortal(mappedStartRect, targetRect);
     }
 
-    void NavigationFlyoutPopup::finalizeSize()
+    NavigationTreeItem* NavigationFlyout::getVisualProxyFor(NavigationTreeItem* item) const
+    {
+        if (!item) return nullptr;
+        NavigationTreeItem* clone = m_itemIndex.value(item->routeKey(), item);
+        NavigationTreeWidget* node = clone ? clone->treeParent() : nullptr;
+        if (!node) return clone;
+
+        auto isReachable = [](const NavigationTreeWidget* n) -> bool {
+            for (const NavigationTreeWidget* p = n->m_parentNode; p; p = p->m_parentNode) {
+                if (p->isCategory() && !p->m_isExpanded) return false;
+            }
+            return true;
+        };
+
+        if (isReachable(node)) {
+            return qobject_cast<NavigationTreeItem*>(node->itemWidget());
+        }
+
+        NavigationTreeWidget* proxy = node->m_parentNode;
+        while (proxy && proxy->isCategory()) {
+            if (isReachable(proxy)) {
+                return qobject_cast<NavigationTreeItem*>(proxy->itemWidget());
+            }
+            proxy = proxy->m_parentNode;
+        }
+
+        if (proxy && proxy->itemWidget()) {
+            return qobject_cast<NavigationTreeItem*>(proxy->itemWidget());
+        }
+
+        return clone;
+    }
+
+    QRectF NavigationFlyout::indicatorRectInHost(NavigationTreeItem* item) const
+    {
+        if (!item || !m_flyoutIndicator) return QRectF();
+
+        NavigationTreeItem* visualItem = getVisualProxyFor(item);
+        if (!visualItem) return QRectF();
+
+        const QWidget* host = m_flyoutIndicator->parentWidget();
+        const QPoint itemOriginInHost = visualItem->mapTo(host ? host : this, QPoint(0, 0));
+        return QRectF(QPointF(itemOriginInHost) + visualItem->indicatorRect().topLeft(), visualItem->indicatorRect().size());
+    }
+
+    void NavigationFlyout::playInternalFlight(const QRectF& targetRect)
+    {
+        if (!m_flyoutIndicator) return;
+        m_flyoutIndicator->show();
+        m_flyoutIndicator->activateAt(targetRect, true);
+    }
+
+    void NavigationFlyout::onIndicatorOwnerChanged(NavigationTreeItem* item, bool isOwner)
+    {
+        // 浮层正在关闭时，忽略任何所有权变更，防止在淡出时突然重新绘制出指示条
+        if (m_isClosing) return;
+
+        if (!item) return;
+        NavigationTreeItem* clone = m_itemIndex.value(item->routeKey());
+        if (!clone) {
+            return;
+        }
+
+        if (isOwner) {
+            NavigationTreeItem* visualItem = getVisualProxyFor(clone);
+            if (visualItem) {
+                visualItem->setShowIndicator(true);
+            }
+        }
+        else {
+            clone->setShowIndicator(false);
+            NavigationTreeWidget* node = clone->treeParent();
+            while (node && node->m_parentNode) {
+                node = node->m_parentNode;
+                if (node->m_itemWidget) {
+                    if (auto* proxyItem = qobject_cast<NavigationTreeItem*>(node->itemWidget())) {
+                        proxyItem->setShowIndicator(false);
+                    }
+                }
+            }
+        }
+    }
+
+    void NavigationFlyout::finalizeSize()
     {
         const QFontMetrics fm(themeFont(Typography::FontRole::Body).toQFont());
         const int leftPadding = kTextLeftOffset;
@@ -297,8 +365,65 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
         adjustSize();
     }
 
-    void NavigationFlyoutPopup::openAt(const QPoint& globalCardTopLeft, const QPoint& slideInOffset)
+    void NavigationFlyout::setIsOpen(bool open)
     {
+        if (m_isOpen == open) return;
+        m_isOpen = open;
+        emit isOpenChanged(open);
+        if (open) {
+            this->open();
+        } else {
+            close();
+        }
+    }
+
+    void NavigationFlyout::showAt(QWidget* anchor)
+    {
+        setAnchor(anchor);
+        if (!anchor || !m_host) return;
+
+        const QRect anchorRect(anchor->mapToGlobal(QPoint(0, 0)), anchor->size());
+        const QSize cardSize = ::fluent::overlay::visibleCardRect(rect(), kShadowMargin).size();
+        
+        QPoint globalCardTopLeft;
+        QPoint slideInOffset;
+
+        if (m_placement == Placement::Right) {
+            // Compact 模式: 在 anchor 右侧弹出，Y方向居中
+            const int panelRightX = m_host->mapToGlobal(QPoint(m_host->width(), 0)).x();
+            const int anchorCenterY = anchorRect.y() + anchorRect.height() / 2;
+            const int yPos = anchorCenterY - cardSize.height() / 2;
+            globalCardTopLeft = QPoint(panelRightX + m_anchorOffset, yPos);
+            slideInOffset = QPoint(8, 0); // kCompactFlyoutSlideOffset = 8
+        } else {
+            // Top 模式 (Bottom): 在 anchor 下方弹出，X方向居中
+            const int panelBottomY = m_host->mapToGlobal(QPoint(0, m_host->height())).y();
+            const int anchorCenterX = anchorRect.x() + anchorRect.width() / 2;
+            const int flyoutCenterX = anchorCenterX - cardSize.width() / 2;
+            globalCardTopLeft = QPoint(flyoutCenterX, panelBottomY + m_anchorOffset);
+            slideInOffset = QPoint(0, 16);
+        }
+
+        openAt(globalCardTopLeft, slideInOffset);
+    }
+
+    void NavigationFlyout::open()
+    {
+        if (m_anchorWidget) {
+            showAt(m_anchorWidget);
+        } else {
+            openAt(m_globalCardPos, m_slideInOffset);
+        }
+    }
+
+    void NavigationFlyout::openAt(const QPoint& globalCardTopLeft, const QPoint& slideInOffset)
+    {
+        if (!m_isOpen) {
+            m_isOpen = true;
+            emit isOpenChanged(true);
+            emit aboutToShow();
+        }
+
         m_globalCardPos = globalCardTopLeft;
         m_slideInOffset = slideInOffset;
 
@@ -330,10 +455,7 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
             ? QPoint(m_slideInOffset.x(), -m_slideInOffset.y())
             : m_slideInOffset;
 
-        qDebug() << "[NavFlyout] openAt cardPos:" << cardPos << "outerTopLeft:" << outerTopLeft
-                 << "effectiveOffset:" << effectiveOffset << "flippedUp:" << m_flippedUp;
-
-        if (effectiveOffset.isNull()) {
+        if (effectiveOffset.isNull() || NavigationWidget::isReducedMotion()) {
             move(outerTopLeft);
             setWindowOpacity(1.0);
             show();
@@ -359,7 +481,6 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
                 m_animGroup->addAnimation(m_fadeAnim);
 
                 connect(m_animGroup, &QParallelAnimationGroup::finished, this, [this]() {
-                    qDebug() << "[NavFlyout] open animation finished -> emitting opened()";
                     emit opened();
                 });
             }
@@ -383,7 +504,68 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
         raise();
     }
 
-    bool NavigationFlyoutPopup::eventFilter(QObject* watched, QEvent* event)
+    void NavigationFlyout::close()
+    {
+        if (m_isClosing) return;
+        m_isClosing = true;
+
+        emit aboutToHide();
+
+        if (m_isOpen) {
+            m_isOpen = false;
+            emit isOpenChanged(false);
+        }
+
+        if (!m_exitAnimationEnabled || NavigationWidget::isReducedMotion()) {
+            hide();
+            emit closed();
+            return;
+        }
+
+        if (m_animGroup) {
+            m_animGroup->stop(); // stop any ongoing entry animation
+        }
+
+        QParallelAnimationGroup* closeGroup = new QParallelAnimationGroup(this);
+        const auto& animTokens = themeAnimation();
+
+        QPropertyAnimation* fadeOut = new QPropertyAnimation(this, "windowOpacity", closeGroup);
+        fadeOut->setStartValue(windowOpacity());
+        fadeOut->setEndValue(0.0);
+        fadeOut->setDuration(animTokens.fast);
+        fadeOut->setEasingCurve(animTokens.exit);
+
+        QPropertyAnimation* slideOut = new QPropertyAnimation(this, "pos", closeGroup);
+        slideOut->setStartValue(pos());
+
+        // 根据入场位移计算退场位移（进退对称原则）
+        QPoint effectiveOffset = m_flippedUp
+            ? QPoint(m_slideInOffset.x(), -m_slideInOffset.y())
+            : m_slideInOffset;
+
+        QPoint exitOffset(0, -8); // 默认退场上浮
+        if (effectiveOffset.y() > 0) exitOffset = QPoint(0, -8);      // 从上向下滑入 -> 向上回缩
+        else if (effectiveOffset.y() < 0) exitOffset = QPoint(0, 8);  // 从下向上滑入 -> 向下回缩
+        else if (effectiveOffset.x() > 0) exitOffset = QPoint(-8, 0); // 从左向右滑入 -> 向左回缩
+        else if (effectiveOffset.x() < 0) exitOffset = QPoint(8, 0);  // 从右向左滑入 -> 向右回缩
+
+        slideOut->setEndValue(pos() + exitOffset);
+        slideOut->setDuration(animTokens.fast);
+        slideOut->setEasingCurve(animTokens.exit);
+
+        closeGroup->addAnimation(fadeOut);
+        closeGroup->addAnimation(slideOut);
+
+        connect(closeGroup, &QParallelAnimationGroup::finished, this, [this, closeGroup]() {
+            hide();
+            emit closed();
+            closeGroup->deleteLater();
+        });
+
+        closeGroup->start();
+    }
+
+    bool NavigationFlyout::eventFilter(QObject* watched, QEvent* event)
     {
         QWidget* topLevel = m_host ? m_host->window() : nullptr;
 
@@ -426,7 +608,7 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
             // ESC 键关闭
             else if (event->type() == QEvent::KeyPress) {
                 auto* ke = static_cast<QKeyEvent*>(event);
-                if (ke->key() == Qt::Key_Escape) {
+                if (ke->key() == Qt::Key_Escape && (m_closePolicy & CloseOnEscape)) {
                     close();
                     return true;
                 }
@@ -480,13 +662,9 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
                 }
 
                 // 3. 默认 LightDismiss：按策略决定吞噬（默认吸收）或放行
-                if (m_lightDismissConsumesPress) {
+                if (m_closePolicy & CloseOnPressOutside) {
                     close();
-                    return true;
-                }
-                else {
-                    close();
-                    return false;
+                    return m_lightDismissConsumesPress;
                 }
             }
         }
@@ -494,23 +672,39 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
         return QWidget::eventFilter(watched, event);
     }
 
-    bool NavigationFlyoutPopup::event(QEvent* e)
+    bool NavigationFlyout::event(QEvent* e)
     {
         // 子控件（克隆节点的 children container）每次改变 fixedHeight 都会向父 widget
-        // 发 LayoutRequest。在此捕获并 adjustSize()，使 flyout 高度跟随动画实时伸缩。
+        // 发 LayoutRequest。在此捕获并 adjustSize()，使 flyout 高度跟随动画实时伸缩
         if (e->type() == QEvent::LayoutRequest)
             adjustSize();
         return NavigationTreeWidgetBase::event(e);
     }
 
-    void NavigationFlyoutPopup::hideEvent(QHideEvent* event)
+    void NavigationFlyout::hideEvent(QHideEvent* event)
     {
         qApp->removeEventFilter(this);
         QWidget::hideEvent(event);
+        if (m_isOpen) {
+            // 如果外部直接调用 hide() 或系统强制隐藏，补发 aboutToHide 以保证信号成对闭环
+            emit aboutToHide();
+            m_isOpen = false;
+            emit isOpenChanged(false);
+        }
         emit closed();
     }
 
-    void NavigationFlyoutPopup::paintEvent(QPaintEvent* event)
+    void NavigationFlyout::keyPressEvent(QKeyEvent* event)
+    {
+        if (event->key() == Qt::Key_Escape && (m_closePolicy & CloseOnEscape)) {
+            close();
+            event->accept();
+            return;
+        }
+        NavigationTreeWidgetBase::keyPressEvent(event);
+    }
+
+    void NavigationFlyout::paintEvent(QPaintEvent* event)
     {
         Q_UNUSED(event)
             QPainter painter(this);

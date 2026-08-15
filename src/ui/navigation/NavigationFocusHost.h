@@ -4,7 +4,7 @@ namespace ui::navigation {
 
 /**
  * @brief 导航焦点宿主接口
- * 
+ *
  * 抽象统一的键盘焦点导航契约，使子部件能够向上委托方向键事件，实现跨层级与跨区域的焦点闭环。
  */
 class INavigationFocusHost {

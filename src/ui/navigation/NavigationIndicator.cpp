@@ -45,64 +45,41 @@ namespace ui::navigation {
             const qreal p = v.toDouble();
 
             if (m_animMode == AnimationMode::PortalReturn) {
-                // Portal Return: 水平指示条从左向右展开恢复
+                // 左固定、宽度从 0 增长到目标，模拟横向归位
                 const qreal morphW = qMax(0.0, m_targetRect.width() * p);
                 m_currentRect = QRectF(m_targetRect.x(), m_targetRect.y(), morphW, m_targetRect.height());
             }
             else if (m_animMode == AnimationMode::CrossWindowPortal) {
-                // Cross Window Portal: 按宿主方向分派形态，顶栏与浮层各放独立动效。
+                // 按宿主方向分派形态：顶栏收缩、浮层生长
                 if (m_position == NavigationPosition::Top) {
-                    // 顶栏水平条：向左收缩消失（左侧固定，右边界左移，宽度衰减到 0）
+                    // 左固定、右边界左移，宽度衰减到 0
                     const qreal morphW = qMax(0.0, m_startRect.width() * (1.0 - p));
                     m_currentRect = QRectF(m_startRect.x(), m_startRect.y(), morphW, m_startRect.height());
                 }
                 else {
-                    // 浮层垂直条：从顶部生成向下生长（顶部固定，高度从 0 增长到目标高度）
+                    // 顶部固定、高度从 0 增长到目标
                     const qreal growH = m_targetRect.height() * p;
                     m_currentRect = QRectF(m_targetRect.x(), m_targetRect.top(), m_targetRect.width(), growH);
                 }
             }
             else if (m_position == NavigationPosition::Top) {
-                // Top 模式：水平胶囊，X 轴滑行，完全镜像 Left 模式的 Y 轴逻辑（X↔Y 对换）
-                const bool portalMode = qAbs(m_startRect.y() - m_targetRect.y()) > 0.5;
-                const bool movingRight = m_targetRect.x() >= m_startRect.x();
+                // 水平胶囊引入流体拉伸，模拟 WinUI 弹性
+                const qreal current_x = m_startRect.x() + (m_targetRect.x() - m_startRect.x()) * p;
+                const qreal width = m_startRect.width() + (m_targetRect.width() - m_startRect.width()) * p;
+                const qreal stretch = qSin(p * M_PI) * qMin(16.0, qAbs(m_targetRect.x() - m_startRect.x()) * 0.4);
 
-                if (portalMode) {
-                    // 跨行（理论上 Top 模式不应出现，但保留兜底）：先收缩宽度到 0，再在目标位置展开
-                    if (p < 0.5) {
-                        const qreal lp     = p * 2.0;
-                        const qreal morphW = qMax(0.0, m_startRect.width() * (1.0 - lp));
-                        m_currentRect.setY(m_startRect.y());
-                        m_currentRect.setHeight(m_startRect.height());
-                        if (movingRight) {
-                            m_currentRect.setLeft(m_startRect.right() - morphW);
-                            m_currentRect.setWidth(morphW);
-                        } else {
-                            m_currentRect.setLeft(m_startRect.left());
-                            m_currentRect.setWidth(morphW);
-                        }
-                    } else {
-                        const qreal lp     = (p - 0.5) * 2.0;
-                        const qreal morphW = qMax(0.0, m_targetRect.width() * lp);
-                        m_currentRect.setY(m_targetRect.y());
-                        m_currentRect.setHeight(m_targetRect.height());
-                        if (movingRight) {
-                            m_currentRect.setLeft(m_targetRect.left());
-                            m_currentRect.setWidth(morphW);
-                        } else {
-                            m_currentRect.setLeft(m_targetRect.right() - morphW);
-                            m_currentRect.setWidth(morphW);
-                        }
-                    }
-                } else {
-                    // 同行（正常情况）：Y 固定，X 插值滑动，宽高固定
-                    m_currentRect.setX(m_startRect.x() + (m_targetRect.x() - m_startRect.x()) * p);
-                    m_currentRect.setY(m_startRect.y());
-                    m_currentRect.setWidth(m_startRect.width() + (m_targetRect.width() - m_startRect.width()) * p);
-                    m_currentRect.setHeight(m_startRect.height());
+                m_currentRect.setY(m_startRect.y() + (m_targetRect.y() - m_startRect.y()) * p);
+                m_currentRect.setHeight(m_startRect.height() + (m_targetRect.height() - m_startRect.height()) * p);
+
+                if (m_targetRect.x() > m_startRect.x()) { // 向右移动
+                    m_currentRect.setLeft(current_x);
+                    m_currentRect.setRight(current_x + width + stretch);
+                } else { // 向左移动
+                    m_currentRect.setLeft(current_x - stretch);
+                    m_currentRect.setRight(current_x + width);
                 }
             } else {
-                // Left 模式：跨层级（X 不同）时用"穿越门"效果
+                // Left 模式：跨层级（X 不同）时用穿越门效果
                 const bool portalMode = qAbs(m_startRect.x() - m_targetRect.x()) > 0.5;
                 const bool movingUp   = m_targetRect.y() <= m_startRect.y();
 
@@ -133,27 +110,34 @@ namespace ui::navigation {
                         }
                     }
                 } else {
+                    const qreal current_y = m_startRect.y() + (m_targetRect.y() - m_startRect.y()) * p;
+                    const qreal height = m_startRect.height() + (m_targetRect.height() - m_startRect.height()) * p;
+                    const qreal stretch = qSin(p * M_PI) * qMin(16.0, qAbs(m_targetRect.y() - m_startRect.y()) * 0.4);
+
                     m_currentRect.setX(m_startRect.x() + (m_targetRect.x() - m_startRect.x()) * p);
-                    m_currentRect.setY(m_startRect.y() + (m_targetRect.y() - m_startRect.y()) * p);
-                    m_currentRect.setWidth(m_startRect.width());
-                    m_currentRect.setHeight(m_startRect.height());
+                    m_currentRect.setWidth(m_startRect.width() + (m_targetRect.width() - m_startRect.width()) * p);
+
+                    if (m_targetRect.y() >= m_startRect.y()) { // 向下移动
+                        m_currentRect.setTop(current_y);
+                        m_currentRect.setBottom(current_y + height + stretch);
+                    } else { // 向上移动
+                        m_currentRect.setTop(current_y - stretch);
+                        m_currentRect.setBottom(current_y + height);
+                    }
                 }
             }
 
-            setGeometry(m_startRect.united(m_targetRect).toRect().adjusted(-5, -5, 5, 5));
+            // 缓冲一圈以容纳拉伸超出目标矩形的部分
+            setGeometry(m_startRect.united(m_targetRect).toRect().adjusted(-20, -20, 20, 20));
             update();
         });
         connect(m_flightAnimation, &QVariantAnimation::finished, this, [this]() {
-            qDebug() << "[NavIndicator] flight finished! finalRect:" << m_targetRect;
             const AnimationMode finishedMode = m_animMode;
-            // 同步为目标几何，避免动画/无动画路径终点不一致导致后续 isSamePosition 误判
+            // 归一为目标几何，避免动画/无动画路径终点不一致导致后续 isSamePosition 误判
             m_animMode = AnimationMode::Normal;
             m_startRect = m_targetRect;
             m_currentRect = m_targetRect;
             hide();
-            // Portal 动画由调用方各自处理收尾（顶栏释放归属 / 浮层恢复原生指示条），不发 flightFinished
-            if (finishedMode == AnimationMode::CrossWindowPortal)
-                return;
             emit flightFinished();
         });
     }
@@ -164,30 +148,36 @@ namespace ui::navigation {
         update();
     }
 
-    void NavigationIndicator::activateAt(const QRectF& targetRect, int durationMs, bool animated)
+    void NavigationIndicator::setInitialPosition(const QRectF& rect)
+    {
+        m_startRect = rect;
+        m_targetRect = rect;
+        m_currentRect = rect;
+        setGeometry(rect.toRect().adjusted(-5, -5, 5, 5));
+    }
+
+    void NavigationIndicator::activateAt(const QRectF& targetRect, bool animated)
     {
         m_animMode = AnimationMode::Normal;
         const bool samePos = isSamePosition(targetRect);
-        qDebug() << "[NavIndicator] activateAt targetRect:" << targetRect
-                 << "currentRect:" << m_currentRect << "samePos:" << samePos
-                 << "durationMs:" << durationMs << "animated:" << animated;
 
         if (samePos) {
             // 位置未变，但仍需让 item 恢复常驻指示条（可能刚被清空）
             m_flightAnimation->stop();
+            emit flightStarted();
             emit flightFinished();
             return;
         }
 
         raiseToTop();
 
-        if (!animated || durationMs <= 0 || NavigationWidget::isReducedMotion()) {
-            qDebug() << "[NavIndicator] activateAt instant snap";
+        if (!animated || NavigationWidget::isReducedMotion()) {
             m_flightAnimation->stop();
             m_startRect = targetRect;
             m_targetRect = targetRect;
             m_currentRect = targetRect;
             hide();
+            emit flightStarted();
             emit flightFinished();
             return;
         }
@@ -198,21 +188,21 @@ namespace ui::navigation {
         m_flightAnimation->setEasingCurve(themeAnimation().decelerate);
         m_flightAnimation->setStartValue(0.0);
         m_flightAnimation->setEndValue(1.0);
-        m_flightAnimation->setDuration(durationMs);
+        m_flightAnimation->setDuration(themeAnimation().normal);
         setGeometry(m_startRect.united(m_targetRect).toRect().adjusted(-5, -5, 5, 5));
         show();
         emit flightStarted();
         m_flightAnimation->start();
     }
 
-    void NavigationIndicator::playPortalReturn(const QRectF& targetRect, int durationMs)
+    void NavigationIndicator::playPortalReturn(const QRectF& targetRect)
     {
-        qDebug() << "[NavIndicator] playPortalReturn targetRect:" << targetRect << "durationMs:" << durationMs;
-        if (NavigationWidget::isReducedMotion() || durationMs <= 0) {
+        if (NavigationWidget::isReducedMotion()) {
             m_startRect = targetRect;
             m_targetRect = targetRect;
             m_currentRect = targetRect;
             hide();
+            emit flightStarted();
             emit flightFinished();
             return;
         }
@@ -221,27 +211,28 @@ namespace ui::navigation {
         m_animMode = AnimationMode::PortalReturn;
         // 起始位置：目标宽度为0
         m_startRect = QRectF(targetRect.x(), targetRect.y(), 0, targetRect.height());
+        
         m_targetRect = targetRect;
         m_currentRect = m_startRect;
         m_flightAnimation->stop();
         m_flightAnimation->setEasingCurve(themeAnimation().decelerate);
         m_flightAnimation->setStartValue(0.0);
         m_flightAnimation->setEndValue(1.0);
-        m_flightAnimation->setDuration(durationMs);
+        m_flightAnimation->setDuration(themeAnimation().normal);
         setGeometry(targetRect.toRect().adjusted(-5, -5, 5, 5));
         show();
         emit flightStarted();
         m_flightAnimation->start();
     }
 
-    void NavigationIndicator::playCrossWindowPortal(const QRectF& startRect, const QRectF& targetRect, int durationMs)
+    void NavigationIndicator::playCrossWindowPortal(const QRectF& startRect, const QRectF& targetRect)
     {
-        qDebug() << "[NavIndicator] playCrossWindowPortal startRect:" << startRect << "targetRect:" << targetRect << "durationMs:" << durationMs;
-        if (NavigationWidget::isReducedMotion() || durationMs <= 0) {
+        if (NavigationWidget::isReducedMotion()) {
             m_startRect = targetRect;
             m_targetRect = targetRect;
             m_currentRect = targetRect;
             hide();
+            emit flightStarted();
             // Portal 动画不发 flightFinished（由调用方各自处理收尾）
             return;
         }
@@ -254,7 +245,7 @@ namespace ui::navigation {
         m_flightAnimation->setEasingCurve(themeAnimation().decelerate);
         m_flightAnimation->setStartValue(0.0);
         m_flightAnimation->setEndValue(1.0);
-        m_flightAnimation->setDuration(durationMs);
+        m_flightAnimation->setDuration(themeAnimation().normal);
 
         // 几何缓冲与初始帧按宿主方向分派：顶栏收缩只需起始矩形，
         // 浮层向下生长（顶部固定、高度 0）只需覆盖目标矩形。
@@ -305,6 +296,7 @@ namespace ui::navigation {
         // geometry 比实际 rect 大一圈（-5,-5,5,5），需映射回局部坐标
         const QPointF offset = -geometry().topLeft();
         const QRectF local = m_currentRect.translated(offset);
+
         painter.drawRoundedRect(local.adjusted(0, 0, -1, -1),
                                 ::CornerRadius::Indicator, ::CornerRadius::Indicator);
     }

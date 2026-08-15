@@ -23,16 +23,16 @@ struct NavigationOverflowEntry {
  * @brief 导航窗格布局位置 (NavigationView PanePosition)
  */
 enum class NavigationPosition {
-    Top,    ///< 顶部水平导航栏模式
-    Left    ///< 左侧侧边栏导航模式
+    Top,    // 顶部水平导航栏模式
+    Left    // 左侧侧边栏导航模式
 };
 
 /**
  * @brief 导航条目归属区域 (MenuItems vs FooterMenuItems)
  */
 enum class NavigationItemPosition {
-    Top,    ///< 顶部主列表区 (MenuItems)
-    Bottom  ///< 底部页脚区 (FooterMenuItems)
+    Top,    // 顶部主列表区 (MenuItems)
+    Bottom  // 底部页脚区 (FooterMenuItems)
 };
 
 /**
@@ -41,11 +41,11 @@ enum class NavigationItemPosition {
  * 与面板 NavigationPosition 正交：Top 栏中的项横向排列，Left 栏与 flyout 中的项纵向排列。
  */
 enum class NavigationOrientation {
-    Horizontal,   ///< 横向排列（Top 栏中的项）
-    Vertical      ///< 纵向排列（Left 栏 / flyout 中的项）
+    Horizontal,   // 横向排列（Top 栏中的项）
+    Vertical      // 纵向排列（Left 栏 / flyout 中的项）
 };
 
-/// 面板位置 → 条目排列方向（Top→横向，Left→纵向）。
+/// 面板位置 → 条目排列方向（Top→横向，Left→纵向）
 constexpr NavigationOrientation orientationFor(NavigationPosition position) {
     return position == NavigationPosition::Top
         ? NavigationOrientation::Horizontal
@@ -56,33 +56,52 @@ constexpr NavigationOrientation orientationFor(NavigationPosition position) {
  * @name 导航布局度量标准
  * @{
  */
-constexpr int kItemHeight = 40;                                                 ///< 对齐 NavigationView 导航项标准行高（ControlHeight::Large）
+// 对齐 NavigationView 导航项标准行高（ControlHeight::Large）
+constexpr int kItemHeight = 40;
 constexpr int kTextLeftOffset = 40;
 constexpr int kIconSlotWidth = Typography::IconSize::Standard;
-constexpr int kItemBgPaddingV = 2;                                              ///< 为行间留出呼吸间距
-constexpr int kSectionHeight = Spacing::ControlHeight::Large;                 ///< 分区标题高：与导航项行高一致
+// 为行间留出呼吸间距
+constexpr int kItemBgPaddingV = 2;
+// 分区标题高：与导航项行高一致
+constexpr int kSectionHeight = Spacing::ControlHeight::Large;
 constexpr int kCompactPaneWidth = Breakpoints::NavigationPaneCompactWidth;
-constexpr int kRowLeftInset = Spacing::XSmall;                              ///< 为指示条与外边框预留间隙
-constexpr int kContentStart = Spacing::Medium;                              ///< 保证图标与指示条的视觉呼吸感
-constexpr int kIconAreaWidth = Typography::IconSize::Standard;              ///< 确保图标几何居中
-constexpr int kChevronAreaWidth = 40;                                     ///< 对齐 WinUI3 ExpandCollapseChevron 点击区域 40px
+// 为指示条与外边框预留间隙
+constexpr int kRowLeftInset = Spacing::XSmall;
+// 保证图标与指示条的视觉呼吸感
+constexpr int kContentStart = Spacing::Medium;
+// 确保图标几何居中
+constexpr int kIconAreaWidth = Typography::IconSize::Standard;
+// 对齐 WinUI3 ExpandCollapseChevron 点击区域 40px
+constexpr int kChevronAreaWidth = 40;
 constexpr int kChevronRightInset = 6;
-constexpr int kChevronIconPixelSize = Typography::IconSize::Compact;        ///< chevron 紧凑指示符使用 12px 原生字形
+// chevron 紧凑指示符使用 12px 原生字形
+constexpr int kChevronIconPixelSize = Typography::IconSize::Compact;
 constexpr int kSelectionIndicatorWidth = 3;
-constexpr int kSelectionIndicatorHeight = 16;                             ///< 视觉高度对齐
+// 视觉高度对齐
+constexpr int kSelectionIndicatorHeight = 16;
 constexpr int kSelectionIndicatorTextGap = Spacing::Small;
-constexpr int kCompactFlyoutRowWidth = 200;                                    ///< 与 MenuFlyout 行宽对齐
+// 与 MenuFlyout 行宽对齐
+constexpr int kCompactFlyoutRowWidth = 200;
 constexpr int kCompactFlyoutAnchorOffsetX = Spacing::XSmall;
 constexpr int kCompactFlyoutSlideOffset = 40;
-constexpr int kShadowMargin = 12;                                      ///< paintLayeredShadow 最外层扩 9px+offsetY 2px，margin≥12 才不裁阴影
-constexpr int kTopBarItemHorizontalPadding = 12;                            ///< Top模式水平内边距
-constexpr int kTopBarItemHeight = 48;                                          ///< Top模式项高度：对齐 NavigationView 顶部栏 48px 规范
-constexpr int kTopSelectionIndicatorHeight = 3;                               ///< Top模式水平指示条高度
-constexpr int kTopSelectionIndicatorWidth = 16;                               ///< Top模式指示条默认/最小宽度
-constexpr int kTopBarButtonSpacing = 4;                                       ///< Top模式按钮间距
-constexpr int kSeparatorLineThickness = 1;                                     ///< 分隔线线体厚度
-constexpr int kSeparatorLeadingMargin = 3;                                     ///< 分隔线前侧（Left=上 / Top=左）留白：WinUI3 NavigationViewItemSeparatorMargin
-constexpr int kSeparatorTrailingMargin = 4;                                    ///< 分隔线后侧（Left=下 / Top=右）留白：WinUI3 NavigationViewItemSeparatorMargin
+// paintLayeredShadow 最外层扩 9px+offsetY 2px，margin≥12 才不裁阴影
+constexpr int kShadowMargin = 12;
+// Top 模式水平内边距
+constexpr int kTopBarItemHorizontalPadding = 12;
+// Top 模式项高度：对齐 NavigationView 顶部栏 48px 规范
+constexpr int kTopBarItemHeight = 48;
+// Top 模式水平指示条高度
+constexpr int kTopSelectionIndicatorHeight = 3;
+// Top 模式指示条默认/最小宽度
+constexpr int kTopSelectionIndicatorWidth = 16;
+// Top 模式按钮间距
+constexpr int kTopBarButtonSpacing = 4;
+// 分隔线线体厚度
+constexpr int kSeparatorLineThickness = 1;
+// 分隔线前侧（Left=上 / Top=左）留白：WinUI3 NavigationViewItemSeparatorMargin
+constexpr int kSeparatorLeadingMargin = 3;
+// 分隔线后侧（Left=下 / Top=右）留白：WinUI3 NavigationViewItemSeparatorMargin
+constexpr int kSeparatorTrailingMargin = 4;
 /** @} */
 
 } // namespace ui::navigation

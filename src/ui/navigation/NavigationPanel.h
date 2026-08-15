@@ -10,7 +10,7 @@
 #include <FluentQt/Foundation.h>
 
 #include "ui/navigation/NavigationFocusHost.h"
-#include "ui/navigation/NavigationFlyoutPopup.h"
+#include "ui/navigation/NavigationFlyout.h"
 #include "ui/navigation/NavigationMetrics.h"
 
 class QPaintEvent;
@@ -26,7 +26,7 @@ class NavigationWidget;
 
 /**
  * @brief 导航整合面板
- * 
+ *
  * 作为 NavigationView 的 mainChromeWidget，集中承载顶部操作区（返回与汉堡按钮）、主导航树（Main）、
  * 底部操作区（Footer）及用户卡片。通过 resizeEvent 实时监听物理宽度推算折叠进度并派发至子树，
  * 保证指示条与布局在 Auto 断点切换时的精确同步。
@@ -76,7 +76,7 @@ public:
      * @param routeKey 目标路由标识
      * @param animated 是否启用指示条平滑滑行动画
      */
-    void setCurrentItem(const QString& routeKey, bool animated = true);
+    void setCurrentItem(const QString& routeKey);
     QString currentRouteKey() const;
 
     /**
@@ -125,8 +125,11 @@ public:
     void setExpandProgress(float progress);
     float expandProgress() const { return m_expandProgress; }
 
+    /// 无动画/有动画精准刷新当前指示条几何与常驻点亮项
+    void refreshIndicatorVisuals(bool animated = false, NavigationTreeItem* prevOwner = nullptr);
+
 signals:
-    /// 切页的唯一驱动源，由树统一广播。
+    /// 切页的唯一驱动源，由树统一广播
     void itemSelected(const QString& routeKey);
     void togglePaneRequested();
     void backRequested();
@@ -135,6 +138,7 @@ signals:
     void backButtonVisibleChanged(bool visible);
     void backEnabledChanged(bool enabled);
     void menuButtonVisibleChanged(bool visible);
+    void indicatorOwnerChanged(NavigationTreeItem* item, bool isOwner);
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -152,16 +156,22 @@ private:
     void showOverflowMenu(QWidget* anchorWidget, const QVector<NavigationOverflowEntry>& entries);
     void closeFlyoutMenu(bool animated = true);
     void closeOverflowMenu(bool animated = true);
-    void triggerCrossWindowPortal(NavigationFlyoutPopup* flyout, QWidget* anchorWidget);
+    void triggerCrossWindowPortal(NavigationFlyout* flyout, QWidget* anchorWidget, NavigationTreeItem* prevOwner, NavigationTreeItem* curClone = nullptr);
+    void dispatchIndicatorAnimation(NavigationTreeItem* prevOwner, NavigationTreeItem* curOwner);
+    void animateFlyoutClosed(const QString& categoryKey, QWidget* anchorWidget);
+
+    /// Flyout 关闭后应执行的动画意图
+    enum class FlyoutCloseIntent {
+        None,          // 无特殊动画（light-dismiss、owner 不属于此 flyout）
+        LeafSlide,     // 叶子点击：顶栏指示条从 prevOwner 滑向 curOwner 的视觉代理
+        PortalReturn,  // 指示条正在 flyout 内部：播放 Portal 归位动画
+    };
 
 private:
     bool m_isCompacted = false;
     bool m_surfaceVisible = false;
     float m_expandProgress = 1.0f;
     NavigationPosition m_position = NavigationPosition::Left;
-
-    QPointer<NavigationFlyoutPopup> m_compactFlyout;
-    QPointer<NavigationFlyoutPopup> m_overflowFlyout;
 
     QBoxLayout* m_layout = nullptr;
     QBoxLayout* m_headerLayout = nullptr;
@@ -171,6 +181,13 @@ private:
     NavigationIndicator* m_indicator = nullptr;
     QWidget* m_userCardContainer = nullptr;
     QBoxLayout* m_userCardLayout = nullptr;
+    QPointer<NavigationTreeItem> m_indicatorOwner;
+    QPointer<NavigationTreeItem> m_visualIndicatorOwner;
+
+    QPointer<NavigationFlyout> m_compactFlyout;
+    QPointer<NavigationFlyout> m_overflowFlyout;
+    FlyoutCloseIntent m_flyoutCloseIntent = FlyoutCloseIntent::None;
+    QPointer<NavigationTreeItem> m_flyoutPrevOwner;
 };
 
 } // namespace ui::navigation

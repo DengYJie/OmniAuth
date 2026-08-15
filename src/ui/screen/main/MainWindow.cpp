@@ -37,8 +37,8 @@ void MainWindow::initWindow() {
     setCustomWindowChromeEnabled(true);
 
     // 主系统采用顶部导航栏
-    navigationView()->setDisplayMode(fluent::navigation::NavigationView::DisplayMode::Top);
-    panel()->setNavigationPosition(ui::navigation::NavigationPosition::Top);
+    navigationView()->setDisplayMode(fluent::navigation::NavigationView::DisplayMode::Auto);
+    panel()->setNavigationPosition(ui::navigation::NavigationPosition::Left);
 }
 
 void MainWindow::buildNavigation() {

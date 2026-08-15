@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.16)
 project(OmniAuth LANGUAGES CXX)
 
 include(qt.cmake)
@@ -215,8 +215,8 @@ set(PROJECT_SOURCES
     src/ui/navigation/NavigationTreeWidgetBase.cpp
     src/ui/navigation/NavigationFocusHost.h
     src/ui/navigation/NavigationMetrics.h
-    src/ui/navigation/NavigationFlyoutPopup.h
-    src/ui/navigation/NavigationFlyoutPopup.cpp
+    src/ui/navigation/NavigationFlyout.h
+    src/ui/navigation/NavigationFlyout.cpp
     src/ui/navigation/NavigationPanel.h
     src/ui/navigation/NavigationPanel.cpp
 )
