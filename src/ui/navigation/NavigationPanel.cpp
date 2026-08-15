@@ -1,4 +1,4 @@
-#include "ui/navigation/NavigationPanel.h"
+﻿#include "ui/navigation/NavigationPanel.h"
 
 #include <QDebug>
 #include <QDynamicPropertyChangeEvent>
@@ -65,10 +65,10 @@ namespace ui::navigation {
             });
         m_headerLayout->addWidget(m_backButton, 0, Qt::AlignLeft);
 
-        m_menuButton = new NavigationToolButton(Typography::Icons::GlobalNav, this);
-        m_menuButton->setAccessibleItemName(QStringLiteral("Toggle navigation pane"));
-        connect(m_menuButton, &NavigationPushButton::clicked, this, &NavigationPanel::togglePane);
-        m_headerLayout->addWidget(m_menuButton, 0, Qt::AlignLeft);
+        m_paneToggleButton = new NavigationToolButton(Typography::Icons::GlobalNav, this);
+        m_paneToggleButton->setAccessibleItemName(QStringLiteral("Toggle navigation pane"));
+        connect(m_paneToggleButton, &NavigationPushButton::clicked, this, &NavigationPanel::togglePane);
+        m_headerLayout->addWidget(m_paneToggleButton, 0, Qt::AlignLeft);
         m_layout->addLayout(m_headerLayout);
 
         m_tree = new NavigationTreeWidget(this);
@@ -188,17 +188,17 @@ namespace ui::navigation {
         }
     }
 
-    bool NavigationPanel::isMenuButtonVisible() const
+    bool NavigationPanel::isPaneToggleButtonVisible() const
     {
-        return m_menuButton && m_menuButton->isVisible();
+        return m_paneToggleButton && m_paneToggleButton->isVisible();
     }
 
-    void NavigationPanel::setMenuButtonVisible(bool visible)
+    void NavigationPanel::setPaneToggleButtonVisible(bool visible)
     {
-        if (m_menuButton && m_menuButton->isVisible() != visible) {
-            m_menuButton->setVisible(visible);
+        if (m_paneToggleButton && m_paneToggleButton->isVisible() != visible) {
+            m_paneToggleButton->setVisible(visible);
             updateGeometry();
-            emit menuButtonVisibleChanged(visible);
+            emit paneToggleButtonVisibleChanged(visible);
         }
     }
 
@@ -220,8 +220,8 @@ namespace ui::navigation {
             closeFlyoutMenu(true);
         if (m_tree)
             m_tree->setCompacted(compacted);
-        if (m_menuButton)
-            m_menuButton->setCompacted(compacted);
+        if (m_paneToggleButton)
+            m_paneToggleButton->setCompacted(compacted);
         if (m_backButton)
             m_backButton->setCompacted(compacted);
 
@@ -438,7 +438,7 @@ namespace ui::navigation {
 
         const auto s = themeSpacing();
         if (orientation == Orientation::Horizontal) {
-            m_menuButton->hide();
+            m_paneToggleButton->hide();
             setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
             if (window()) {
                 setFixedWidth(window()->width());
@@ -453,7 +453,7 @@ namespace ui::navigation {
             m_layout->setStretch(2, 0);
         }
         else {
-            m_menuButton->show();
+            m_paneToggleButton->show();
             setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
             m_layout->setContentsMargins(0, 0, 0, s.small);
             m_headerLayout->setContentsMargins(0, s.xSmall, 0, 0);

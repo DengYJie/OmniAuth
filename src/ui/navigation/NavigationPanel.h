@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <QPointer>
 #include <QVariantAnimation>
@@ -40,7 +40,7 @@ namespace ui::navigation {
         Q_OBJECT
             Q_PROPERTY(bool backButtonVisible READ isBackButtonVisible WRITE setBackButtonVisible NOTIFY backButtonVisibleChanged)
             Q_PROPERTY(bool backEnabled READ isBackEnabled WRITE setBackEnabled NOTIFY backEnabledChanged)
-            Q_PROPERTY(bool menuButtonVisible READ isMenuButtonVisible WRITE setMenuButtonVisible NOTIFY menuButtonVisibleChanged)
+            Q_PROPERTY(bool paneToggleButtonVisible READ isPaneToggleButtonVisible WRITE setPaneToggleButtonVisible NOTIFY paneToggleButtonVisibleChanged)
             Q_PROPERTY(bool compacted READ isCompacted WRITE setCompacted NOTIFY compactedChanged)
 
     public:
@@ -100,9 +100,8 @@ namespace ui::navigation {
 
         NavigationIndicator* indicator() const { return m_indicator; }
         NavigationTreeWidget* tree() const { return m_tree; }
-        NavigationToolButton* menuButton() const { return m_menuButton; }
         NavigationToolButton* backButton() const { return m_backButton; }
-        NavigationToolButton* paneToggleButton() const { return m_menuButton; }
+        NavigationToolButton* paneToggleButton() const { return m_paneToggleButton; }
 
         /**
          * @brief 显式注入关联的 NavigationView，替代 parentWidget 隐式查找
@@ -116,10 +115,8 @@ namespace ui::navigation {
         bool isBackEnabled() const;
         void setBackEnabled(bool enabled);
 
-        bool isMenuButtonVisible() const;
-        void setMenuButtonVisible(bool visible);
-        bool isPaneToggleButtonVisible() const { return isMenuButtonVisible(); }
-        void setPaneToggleButtonVisible(bool visible) { setMenuButtonVisible(visible); }
+        bool isPaneToggleButtonVisible() const;
+        void setPaneToggleButtonVisible(bool visible);
 
         bool isCompacted() const { return m_isCompacted; }
         void setCompacted(bool compacted);
@@ -144,7 +141,7 @@ namespace ui::navigation {
         void compactedChanged(bool compacted);
         void backButtonVisibleChanged(bool visible);
         void backEnabledChanged(bool enabled);
-        void menuButtonVisibleChanged(bool visible);
+        void paneToggleButtonVisibleChanged(bool visible);
         void indicatorOwnerChanged(NavigationTreeItem* item, bool isOwner);
 
     protected:
@@ -189,7 +186,7 @@ namespace ui::navigation {
         QBoxLayout* m_layout = nullptr;
         QBoxLayout* m_headerLayout = nullptr;
         NavigationToolButton* m_backButton = nullptr;
-        NavigationToolButton* m_menuButton = nullptr;
+        NavigationToolButton* m_paneToggleButton = nullptr;
         NavigationTreeWidget* m_tree = nullptr;
         NavigationIndicator* m_indicator = nullptr;
         QPointer<fluent::navigation::NavigationView> m_navigationView = nullptr;
