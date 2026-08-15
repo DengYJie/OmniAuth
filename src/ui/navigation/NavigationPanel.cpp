@@ -111,9 +111,11 @@ namespace ui::navigation {
 
     void NavigationPanel::addItem(const QString& routeKey, const QString& iconGlyph,
         const QString& text, const QString& parentKey,
-        NavigationItemPosition position, bool selectable)
+        NavigationItemPosition position, bool selectable, const QString& tooltip)
     {
-        m_tree->addItem(routeKey, iconGlyph, text, parentKey, position, selectable);
+        if (!m_tree)
+            return;
+        m_tree->addItem(routeKey, iconGlyph, text, parentKey, position, selectable, tooltip);
     }
 
     void NavigationPanel::addSectionHeader(const QString& text)
@@ -200,7 +202,7 @@ namespace ui::navigation {
         }
     }
 
-    void NavigationPanel::setCompacted(bool compacted, bool [[maybe_unused]] /*animated*/)
+    void NavigationPanel::setCompacted(bool compacted)
     {
         if (m_isCompacted == compacted)
             return;
@@ -250,7 +252,7 @@ namespace ui::navigation {
     {
         if (!m_navigationView)
             return;
-        setCompacted(!m_navigationView->isPaneOpen(), m_navigationView->isAnimationEnabled());
+        setCompacted(!m_navigationView->isPaneOpen());
     }
 
     void NavigationPanel::togglePane()
@@ -495,7 +497,7 @@ namespace ui::navigation {
         NavigationTreeItem* owner = m_indicatorOwner;
         NavigationTreeItem* visualOwner = m_tree->getVisualProxyFor(prevOwner ? prevOwner : owner);
 
-        // 顶栏起飞矩形：必须取顶栏指示条此时此刻的真实视觉位置（如从 home 起飞就是 home(136)，从 mgmt 起飞就是 mgmt(397)）
+        // 顶栏起飞矩形：取指示条当前的真实视觉位置而非选中项几何，保证从任意项起飞都从原位开始
         QRectF topHostStartRect;
         if (m_indicator && m_indicator->currentRect().isValid() && m_indicator->currentRect().width() > 0) {
             topHostStartRect = m_indicator->currentRect();

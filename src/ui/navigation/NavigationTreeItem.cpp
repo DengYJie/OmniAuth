@@ -9,6 +9,7 @@
 #include <QVariantAnimation>
 
 #include <FluentQt/Design.h>
+#include <FluentQt/StatusInfo.h>
 
 #include "ui/navigation/NavigationMetrics.h"
 
@@ -17,6 +18,7 @@ namespace ui::navigation {
     NavigationTreeItem::NavigationTreeItem(const QString& routeKey,
         const QString& iconGlyph,
         const QString& text,
+        const QString& tooltipText,
         Kind kind,
         int depth,
         bool selectable,
@@ -24,6 +26,7 @@ namespace ui::navigation {
         : NavigationPushButton(iconGlyph, text, /*isSelectable=*/selectable, parent)
         , m_routeKey(routeKey)
         , m_kind(kind)
+        , m_tooltipText(tooltipText)
     {
         setNodeDepth(depth);
         setSelectable(selectable);
@@ -32,7 +35,7 @@ namespace ui::navigation {
             setAccessibleItemName(text);
         notifyAccessibleRoleChange();
 
-        // chevron 旋转动画：展开 0°→180°（分类箭头向下展开）
+        // 分类箭头随展开/折叠状态旋转，展开时朝下
         m_rotateAnimation = new QVariantAnimation(this);
         m_rotateAnimation->setDuration(themeAnimation().fast);
         m_rotateAnimation->setEasingCurve(themeAnimation().decelerate);
@@ -258,6 +261,17 @@ namespace ui::navigation {
             return;
         }
         NavigationPushButton::mouseReleaseEvent(event);
+    }
+    void NavigationTreeItem::setCompacted(bool compacted)
+    {
+        NavigationWidget::setCompacted(compacted);
+
+        if (compacted && nodeDepth() == 0) {
+            fluent::status_info::ToolTip::attach(this, m_tooltipText, fluent::status_info::ToolTip::Placement::Above);
+        }
+        else {
+            fluent::status_info::ToolTip::attach(this, QString());
+        }
     }
 
 } // namespace ui::navigation

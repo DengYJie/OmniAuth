@@ -175,6 +175,7 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
             srcNode->routeKey(),
             srcItem->iconGlyph(),
             srcItem->text(),
+            srcItem->tooltipText(),
             srcNode->isCategory() ? NavigationTreeItem::Kind::Category : NavigationTreeItem::Kind::Leaf,
             depth,
             srcItem->isSelectable(),

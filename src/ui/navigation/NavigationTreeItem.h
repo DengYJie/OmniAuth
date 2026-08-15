@@ -33,11 +33,16 @@ namespace ui::navigation {
         NavigationTreeItem(const QString& routeKey,
             const QString& iconGlyph,
             const QString& text,
+            const QString& tooltipText,
             Kind kind,
             int depth,
             bool selectable = true,
             QWidget* parent = nullptr);
         ~NavigationTreeItem() override = default;
+
+        QString tooltipText() const { return m_tooltipText; }
+
+        void setCompacted(bool compacted) override;
 
         QString routeKey() const { return m_routeKey; }
         Kind kind() const { return m_kind; }
@@ -94,6 +99,8 @@ namespace ui::navigation {
         bool chevronVisible() const;
 
     private:
+        QString m_tooltipText;
+
         void onClicked();
         void notifyAccessibleState(const QAccessible::State& state);
         void notifyAccessibleRoleChange();

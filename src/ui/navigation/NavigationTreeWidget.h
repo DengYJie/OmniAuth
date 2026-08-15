@@ -46,15 +46,18 @@ namespace ui::navigation {
 
             // flyout 通过克隆节点重建子树，需访问节点受保护的结构成员
             friend class NavigationFlyout;
+            friend class NavigationPanel;
+            friend class NavigationTreeWidgetBase;
 
     public:
         explicit NavigationTreeWidget(QWidget* parent = nullptr);
+        ~NavigationTreeWidget() override = default;
 
+    private:
         /// 节点模式构造：挂载到 rootNode，不初始化根资源
         explicit NavigationTreeWidget(NavigationTreeWidget* rootNode);
 
-        ~NavigationTreeWidget() override = default;
-
+    public:
         /**
          * @brief 注册节点
          * @param routeKey 唯一路由键
@@ -67,7 +70,8 @@ namespace ui::navigation {
         void addItem(const QString& routeKey, const QString& iconGlyph,
             const QString& text, const QString& parentKey = QString(),
             NavigationItemPosition position = NavigationItemPosition::Top,
-            bool selectable = true);
+            bool selectable = true,
+            const QString& tooltip = QString());
 
         /**
          * @brief 添加分区标题
@@ -120,8 +124,10 @@ namespace ui::navigation {
 
         QString currentRouteKey() const { return m_currentRouteKey; }
 
+    private:
         NavigationTreeItem* getVisualProxyFor(NavigationTreeItem* logicalOwner) const;
 
+    public:
         NavigationTreeItem* findFirstSelectableItem() const;
 
         /**
@@ -144,17 +150,19 @@ namespace ui::navigation {
         void setOrientation(Orientation orientation);
         Orientation orientation() const { return m_orientation; }
 
+    private:
         /// 标记节点为 flyout 内克隆节点：点击分类时内联展开而非再弹 flyout
         void setInlineExpansion(bool inlineMode) { m_inlineExpansion = inlineMode; }
         bool inlineExpansion() const { return m_inlineExpansion; }
 
-    public slots:
+    private slots:
         void onIndicatorOwnerChanged(NavigationTreeItem* item, bool isOwner);
 
-    public:
+    private:
         /// 计算给定控件在其宿主坐标系下的指示条目标矩形
         QRectF indicatorRectInHost(NavigationWidget* item, QWidget* host = nullptr) const;
 
+    public:
         /**
          * @brief 判定节点是否为目标节点的后代
          */
@@ -175,6 +183,7 @@ namespace ui::navigation {
          */
         void setRememberExpandState(const QString& routeKey, bool remember);
 
+    private:
         /**
          * @brief 保存分类节点当前展开状态（供后续恢复）。
          */
@@ -184,17 +193,6 @@ namespace ui::navigation {
          * @brief 恢复分类节点保存的展开状态。
          */
         void restoreExpandState(const QString& routeKey, bool animated = true);
-
-        /**
-         * @brief 返回指定分类的直接子项描述（routeKey / iconGlyph / text）。
-         * 用于紧凑模式 flyout 填充子项行。
-         */
-        struct ChildDescriptor {
-            QString routeKey;
-            QString iconGlyph;
-            QString text;
-        };
-        QVector<ChildDescriptor> childrenOf(const QString& categoryKey) const;
 
         void collapseCategoryChevron(const QString& categoryKey);
 
@@ -221,6 +219,7 @@ namespace ui::navigation {
         /// 判定某分类是否处于 flyout 激活态
         bool isCategoryActive(const QString& categoryKey) const { return m_activeCategoryKey == categoryKey; }
 
+    public:
         void moveFocusBy(int delta) override;
 
         /// 是否有溢出项（Top 模式栏内容超宽时）

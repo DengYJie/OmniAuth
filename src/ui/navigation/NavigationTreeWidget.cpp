@@ -50,7 +50,7 @@ namespace ui::navigation {
         m_mainLayout = new QBoxLayout(QBoxLayout::TopToBottom);
         m_mainLayout->setContentsMargins(0, 0, 0, 0);
         m_mainLayout->setSpacing(0);
-        m_mainLayout->addStretch(1); // 将条目压到顶部
+        m_mainLayout->addStretch(1);
 
         m_footerLayout = new QBoxLayout(QBoxLayout::TopToBottom);
         m_footerLayout->setContentsMargins(0, 0, 0, 0);
@@ -102,7 +102,7 @@ namespace ui::navigation {
 
     void NavigationTreeWidget::addItem(const QString& routeKey, const QString& iconGlyph,
         const QString& text, const QString& parentKey,
-        NavigationItemPosition position, bool selectable)
+        NavigationItemPosition position, bool selectable, const QString& tooltip)
     {
         auto* node = new NavigationTreeWidget(m_root);
         node->m_routeKey = routeKey;
@@ -115,7 +115,8 @@ namespace ui::navigation {
         }
 
         const int depth = node->m_parentNode ? node->m_parentNode->m_itemWidget->nodeDepth() + 1 : 0;
-        auto* item = new NavigationTreeItem(routeKey, iconGlyph, text,
+        const QString actualTooltip = tooltip.isEmpty() ? text : tooltip;
+        auto* item = new NavigationTreeItem(routeKey, iconGlyph, text, actualTooltip,
             NavigationTreeItem::Kind::Leaf, depth, selectable, nullptr);
         item->setOrientation(m_orientation);
         item->setExpandProgress(m_expandProgress);
@@ -318,22 +319,6 @@ namespace ui::navigation {
                 header->setCompacted(compacted);
     }
 
-    QVector<NavigationTreeWidget::ChildDescriptor> NavigationTreeWidget::childrenOf(const QString& categoryKey) const
-    {
-        QVector<ChildDescriptor> result;
-        const NavigationTreeWidget* node = nodeFor(categoryKey);
-        if (!node)
-            return result;
-        for (const NavigationTreeWidget* child : node->m_children) {
-            if (!child->m_itemWidget)
-                continue;
-            auto* btn = qobject_cast<NavigationPushButton*>(child->m_itemWidget);
-            result.append({ child->m_routeKey,
-                            btn ? btn->iconGlyph() : QString(),
-                            btn ? btn->text() : QString() });
-        }
-        return result;
-    }
 
     void NavigationTreeWidget::setCurrentItem(const QString& routeKey, bool updateOverflow)
     {

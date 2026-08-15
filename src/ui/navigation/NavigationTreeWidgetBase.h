@@ -48,7 +48,9 @@ public:
     void expandAncestors(NavigationTreeWidget* node);
 
     /// 决策槽：itemWidget 的 itemClicked 统一入口，依据分类/可选中/模式分派
+protected:
     void onItemClicked(const QString& routeKey, bool chevronClicked);
+public:
 
 signals:
     /// 展开态变化，供根统一处理指示条归属等副作用
