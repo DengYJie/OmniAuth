@@ -44,8 +44,9 @@ namespace ui::navigation {
     public:
         enum class Placement {
             Right,   // Compact 侧边栏模式：向右弹出
-            Bottom,  // Top 顶栏模式：向下弹出
-            Auto,    // 自动检测屏幕边缘并翻转
+            Bottom,      // Top 顶栏模式：向下弹出 (默认左对齐或居中)
+            BottomRight, // Top 顶栏模式：向下弹出，右对齐 (常用于 Overflow 菜单)
+            Auto,        // 自动检测屏幕边缘并翻转
         };
         Q_ENUM(Placement)
 

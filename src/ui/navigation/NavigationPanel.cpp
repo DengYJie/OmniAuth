@@ -1,4 +1,4 @@
-﻿#include "ui/navigation/NavigationPanel.h"
+#include "ui/navigation/NavigationPanel.h"
 
 #include <QDebug>
 #include <QDynamicPropertyChangeEvent>
@@ -204,6 +204,15 @@ namespace ui::navigation {
 
     void NavigationPanel::setCompacted(bool compacted)
     {
+        if (m_navigationView) {
+            qWarning() << "NavigationPanel is managed by NavigationView. setCompacted() ignored.";
+            return;
+        }
+        internalSetCompacted(compacted);
+    }
+
+    void NavigationPanel::internalSetCompacted(bool compacted)
+    {
         if (m_isCompacted == compacted)
             return;
         m_isCompacted = compacted;
@@ -244,7 +253,7 @@ namespace ui::navigation {
     {
         using DisplayMode = fluent::navigation::NavigationView::DisplayMode;
         const auto dm = static_cast<DisplayMode>(mode);
-        setOrientation(dm == DisplayMode::Top ? Orientation::Horizontal : Orientation::Vertical);
+        internalSetOrientation(dm == DisplayMode::Top ? Orientation::Horizontal : Orientation::Vertical);
         m_navigationView->setPaneOpen(dm == DisplayMode::Left || dm == DisplayMode::Top);
     }
 
@@ -252,7 +261,7 @@ namespace ui::navigation {
     {
         if (!m_navigationView)
             return;
-        setCompacted(!m_navigationView->isPaneOpen());
+        internalSetCompacted(!m_navigationView->isPaneOpen());
     }
 
     void NavigationPanel::togglePane()
@@ -405,6 +414,15 @@ namespace ui::navigation {
     }
 
     void NavigationPanel::setOrientation(Orientation orientation)
+    {
+        if (m_navigationView) {
+            qWarning() << "NavigationPanel is managed by NavigationView. setOrientation() ignored.";
+            return;
+        }
+        internalSetOrientation(orientation);
+    }
+
+    void NavigationPanel::internalSetOrientation(Orientation orientation)
     {
         if (m_orientation == orientation)
             return;
@@ -672,7 +690,7 @@ namespace ui::navigation {
                 }, Qt::SingleShotConnection);
         }
 
-        flyout->setPlacement(NavigationFlyout::Placement::Bottom);
+        flyout->setPlacement(NavigationFlyout::Placement::BottomRight);
         flyout->showAt(anchorWidget);
     }
 

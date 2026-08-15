@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <QPointer>
 #include <QVariantAnimation>
@@ -176,6 +176,9 @@ namespace ui::navigation {
             LeafSlide,     // 叶子点击：顶栏指示条从 prevOwner 滑向 curOwner 的视觉代理
             PortalReturn,  // 指示条正在 flyout 内部：播放 Portal 归位动画
         };
+
+        void internalSetOrientation(Orientation orientation);
+        void internalSetCompacted(bool compacted);
 
     private:
         bool m_isCompacted = false;

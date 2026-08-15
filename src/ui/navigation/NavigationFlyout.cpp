@@ -397,11 +397,21 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
             globalCardTopLeft = QPoint(panelRightX + m_anchorOffset, yPos);
             slideInOffset = QPoint(8, 0); // kCompactFlyoutSlideOffset = 8
         } else {
-            // Top 模式 (Bottom): 在 anchor 下方弹出，X方向居中
+            // Top 模式 (Bottom / BottomRight): 在 anchor 下方弹出
             const int panelBottomY = m_host->mapToGlobal(QPoint(0, m_host->height())).y();
-            const int anchorCenterX = anchorRect.x() + anchorRect.width() / 2;
-            const int flyoutCenterX = anchorCenterX - cardSize.width() / 2;
-            globalCardTopLeft = QPoint(flyoutCenterX, panelBottomY + m_anchorOffset);
+            
+            int flyoutX = 0;
+            if (m_placement == Placement::BottomRight) {
+                // 右对齐：Flyout 右边缘与 Anchor 右边缘对齐
+                const int anchorRightX = anchorRect.right();
+                flyoutX = anchorRightX - cardSize.width() + 1; // +1 to compensate rect().right() logic
+            } else {
+                // 默认居中：X方向居中
+                const int anchorCenterX = anchorRect.x() + anchorRect.width() / 2;
+                flyoutX = anchorCenterX - cardSize.width() / 2;
+            }
+            
+            globalCardTopLeft = QPoint(flyoutX, panelBottomY + m_anchorOffset);
             slideInOffset = QPoint(0, 16);
         }
 
