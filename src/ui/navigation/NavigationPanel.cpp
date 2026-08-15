@@ -1,4 +1,4 @@
-﻿#include "ui/navigation/NavigationPanel.h"
+#include "ui/navigation/NavigationPanel.h"
 
 #include <QDebug>
 #include <QDynamicPropertyChangeEvent>
@@ -295,9 +295,12 @@ namespace ui::navigation {
         // 1. 同步物理起点：仅当存在真实逻辑切换，且物理指示条需要滑行时
         if (animated && prevLogicalOwner && prevLogicalOwner != m_indicatorOwner) {
             NavigationTreeItem* prevProxy = m_visualIndicatorOwner ? m_visualIndicatorOwner.data() : m_tree->getVisualProxyFor(prevLogicalOwner);
-            if (prevProxy) {
+            if (prevProxy && !prevProxy->isHidden()) {
                 const QRectF prevRect = m_tree->indicatorRectInHost(prevProxy, this);
                 m_indicator->setInitialPosition(prevRect);
+            } else {
+                // 原逻辑节点的替身由于 overflow 更新等原因被隐藏不可见，取消跨越动画直接就位
+                animated = false;
             }
         }
 
