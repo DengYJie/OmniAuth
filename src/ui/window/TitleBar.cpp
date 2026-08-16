@@ -15,17 +15,28 @@ namespace {
     constexpr int TitleBarStandardHeight = 32;
     // 包含搜索框或用户卡片时的扩展高度
     constexpr int TitleBarTallHeight = 48;
-    // WinUI 3 满出血背板右侧控制按钮宽度 (Min/Max/Close)
+    // 满出血背板右侧控制按钮宽度
     constexpr int CaptionButtonWidth = 46;
-    // WinUI 3 左侧导航按钮宽度 (Back/Menu)
+    // 左侧导航按钮宽度
     constexpr int AppTitleBarButtonWidth = 40;
-    // WinUI 3 规范元素安全间距
+
+    // 左侧留白列宽 (Col 0)
+    constexpr int TitleBarLeftPaddingWidth = 2;
+    // 默认左标题留白列宽 (Col 4 DefaultSpacing)
+    constexpr int TitleBarLeftHeaderDefaultPaddingWidth = 14;
+    // 单按钮负偏移留白列宽 (Col 4 NegativeInsetSpacing)
+    constexpr int TitleBarLeftHeaderNegativeInsetPaddingWidth = 2;
+    // 图标右外边距
+    constexpr int TitleBarIconMarginRight = 16;
+    // 标题文本右外边距
+    constexpr int TitleBarTitleMarginRight = 8;
+    // 副标题文本右外边距
+    constexpr int TitleBarSubtitleMarginRight = 16;
+    // 规范安全间距
     constexpr int ElementSpacing = 16;
-    // 标题文本右侧间距
-    constexpr int TitleMarginRight = 8;
     // 标准图标像素尺寸
     constexpr int IconSize = 16;
-    // 窗口非活动时的内容透明度规范 (TitleBarDeactivatedOpacity)
+    // 窗口非活动时的内容透明度
     constexpr qreal InactiveOpacity = 0.5;
 }
 
@@ -144,6 +155,7 @@ fluent::basicinput::Button* TitleBar::createCaptionButton(const QString& objectN
     button->setFluentLayout(fluent::basicinput::Button::IconOnly);
     button->setIconGlyph(glyph, IconSize);
     button->setFocusPolicy(Qt::NoFocus);
+    button->setCornerRadii(QMargins(0, 0, 0, 0)); // Caption buttons have full bleed backplates (0 radius)
     if (isCloseBtn) {
         button->setCriticalOnHover(true);
     }
@@ -238,36 +250,41 @@ TitleBar::HeightOption TitleBar::heightOption() const {
     return m_heightOption;
 }
 
-void TitleBar::setSearchWidget(QWidget* searchWidget) {
-    if (m_searchWidget == searchWidget) return;
-    if (m_searchWidget) m_searchWidget->setParent(nullptr);
-    m_searchWidget = searchWidget;
-    if (m_searchWidget) {
-        m_searchWidget->setParent(this);
-        m_searchWidget->show();
+void TitleBar::setContentWidget(QWidget* contentWidget, ContentAlignment alignment) {
+    if (m_contentWidget == contentWidget && m_contentAlignment == alignment) return;
+    if (m_contentWidget && m_contentWidget != contentWidget) m_contentWidget->setParent(nullptr);
+    m_contentWidget = contentWidget;
+    m_contentAlignment = alignment;
+    if (m_contentWidget) {
+        m_contentWidget->setParent(this);
+        m_contentWidget->show();
     }
     updateHeight();
     updateLayout();
 }
 
-QWidget* TitleBar::searchWidget() const {
-    return m_searchWidget;
+QWidget* TitleBar::contentWidget() const {
+    return m_contentWidget;
 }
 
-void TitleBar::setAccountWidget(QWidget* accountWidget) {
-    if (m_accountWidget == accountWidget) return;
-    if (m_accountWidget) m_accountWidget->setParent(nullptr);
-    m_accountWidget = accountWidget;
-    if (m_accountWidget) {
-        m_accountWidget->setParent(this);
-        m_accountWidget->show();
+TitleBar::ContentAlignment TitleBar::contentAlignment() const {
+    return m_contentAlignment;
+}
+
+void TitleBar::setRightHeaderWidget(QWidget* rightHeaderWidget) {
+    if (m_rightHeaderWidget == rightHeaderWidget) return;
+    if (m_rightHeaderWidget) m_rightHeaderWidget->setParent(nullptr);
+    m_rightHeaderWidget = rightHeaderWidget;
+    if (m_rightHeaderWidget) {
+        m_rightHeaderWidget->setParent(this);
+        m_rightHeaderWidget->show();
     }
     updateHeight();
     updateLayout();
 }
 
-QWidget* TitleBar::accountWidget() const {
-    return m_accountWidget;
+QWidget* TitleBar::rightHeaderWidget() const {
+    return m_rightHeaderWidget;
 }
 
 void TitleBar::setLeftHeaderWidget(QWidget* leftHeaderWidget) {
@@ -283,21 +300,6 @@ void TitleBar::setLeftHeaderWidget(QWidget* leftHeaderWidget) {
 
 QWidget* TitleBar::leftHeaderWidget() const {
     return m_leftHeaderWidget;
-}
-
-void TitleBar::setContentWidget(QWidget* contentWidget) {
-    if (m_customContentWidget == contentWidget) return;
-    if (m_customContentWidget) m_customContentWidget->setParent(nullptr);
-    m_customContentWidget = contentWidget;
-    if (m_customContentWidget) {
-        m_customContentWidget->setParent(this);
-        m_customContentWidget->show();
-    }
-    updateLayout();
-}
-
-QWidget* TitleBar::contentWidget() const {
-    return m_customContentWidget;
 }
 
 void TitleBar::onThemeUpdated() {
@@ -354,17 +356,17 @@ void TitleBar::resizeEvent(QResizeEvent* event) {
 }
 
 void TitleBar::updateHeight() {
-    // 存在搜索框或用户卡片时强制使用扩展高度
-    bool requiresTall = (m_searchWidget != nullptr || m_accountWidget != nullptr);
+    // 存在主内容或右侧内容时强制使用扩展高度
+    bool requiresTall = (m_contentWidget != nullptr || m_rightHeaderWidget != nullptr);
     int targetHeight = (m_heightOption == HeightOption::Tall || requiresTall) ? TitleBarTallHeight : TitleBarStandardHeight;
     setTitleBarHeight(targetHeight);
 }
 
 void TitleBar::updateCaptionButtonSizes() {
     const int h = titleBarHeight();
-    m_backButton->setFixedSize(AppTitleBarButtonWidth, h);
-    m_paneToggleButton->setFixedSize(AppTitleBarButtonWidth, h);
-    m_iconButton->setFixedSize(AppTitleBarButtonWidth, h);
+    m_backButton->setFixedSize(AppTitleBarButtonWidth - 4, h - 4);
+    m_paneToggleButton->setFixedSize(AppTitleBarButtonWidth - 4, h - 4);
+    m_iconButton->setFixedSize(IconSize, IconSize);
     m_minimizeButton->setFixedSize(CaptionButtonWidth, h);
     m_maximizeButton->setFixedSize(CaptionButtonWidth, h);
     m_closeButton->setFixedSize(CaptionButtonWidth, h);
@@ -374,34 +376,34 @@ void TitleBar::updateLayout() {
     const int w = width();
     const int h = titleBarHeight();
 
+    // Col 0: 左侧基准起点
     int currentX = 0;
-    
-    // 左侧按钮区域
+
+    // Col 1: BackButton (40px 区域内留出 2px 边距，实现标准按钮外观)
     if (m_backButtonVisible) {
-        m_backButton->setGeometry(currentX, 0, AppTitleBarButtonWidth, h);
-        currentX += AppTitleBarButtonWidth;
-    }
-    if (m_paneToggleButtonVisible) {
-        m_paneToggleButton->setGeometry(currentX, 0, AppTitleBarButtonWidth, h);
+        m_backButton->setGeometry(currentX + 2, 2, AppTitleBarButtonWidth - 4, h - 4);
         currentX += AppTitleBarButtonWidth;
     }
 
-    // LeftHeaderPresenter: 原生 WinUI 3 左侧自定义内容
+    // Col 2: PaneToggleButton (40px 区域内留出 2px 边距，实现标准按钮外观)
+    if (m_paneToggleButtonVisible) {
+        m_paneToggleButton->setGeometry(currentX + 2, 2, AppTitleBarButtonWidth - 4, h - 4);
+        currentX += AppTitleBarButtonWidth;
+    }
+
+    // Col 3: LeftHeaderPresenter (自定义左侧控件)
     if (m_leftHeaderWidget) {
         m_leftHeaderWidget->setGeometry(currentX, (h - m_leftHeaderWidget->height()) / 2, m_leftHeaderWidget->width(), m_leftHeaderWidget->height());
         currentX += m_leftHeaderWidget->width();
     }
 
-    // 左侧内容区域的起始需要一个安全间距（如果左侧没有按钮/LeftHeader，默认左边距为16）
-    if (!m_backButtonVisible && !m_paneToggleButtonVisible && !m_leftHeaderWidget) {
-        currentX += ElementSpacing;
-    } else if (m_leftHeaderWidget) {
-        currentX += ElementSpacing; // WinUI 规范中，如果有 LeftHeader，它和 Icon 之间有间距
-    }
+    // 距左侧边框或按钮/LeftHeader 统一保持 16px 规范安全间距
+    currentX += ElementSpacing;
 
+    // Col 5: Icon (16x16 居中，右侧预留 16px 间距)
     if (!m_icon.isNull()) {
-        m_iconButton->setGeometry(currentX, 0, AppTitleBarButtonWidth, h);
-        currentX += AppTitleBarButtonWidth;
+        m_iconButton->setGeometry(currentX, (h - IconSize) / 2, IconSize, IconSize);
+        currentX += IconSize + ElementSpacing;
     }
 
     int rightOffset = w;
@@ -412,42 +414,47 @@ void TitleBar::updateLayout() {
     rightOffset -= CaptionButtonWidth;
     m_minimizeButton->setGeometry(rightOffset, 0, CaptionButtonWidth, h);
 
-    if (m_accountWidget) {
-        rightOffset -= m_accountWidget->width();
-        m_accountWidget->setGeometry(rightOffset, (h - m_accountWidget->height()) / 2, m_accountWidget->width(), m_accountWidget->height());
+    if (m_rightHeaderWidget) {
+        rightOffset -= m_rightHeaderWidget->width();
+        m_rightHeaderWidget->setGeometry(rightOffset, (h - m_rightHeaderWidget->height()) / 2, m_rightHeaderWidget->width(), m_rightHeaderWidget->height());
         rightOffset -= ElementSpacing;
     }
 
-    // 搜索框基于窗口几何中心绝对居中
-    int searchLeft = w;
-    if (m_searchWidget) {
-        int sw = m_searchWidget->width();
-        int sh = m_searchWidget->height();
-        searchLeft = (w - sw) / 2;
-        m_searchWidget->setGeometry(searchLeft, (h - sh) / 2, sw, sh);
+    // Content: 根据对齐方式处理居中或拉伸
+    int contentLeft = w;
+    if (m_contentWidget) {
+        if (m_contentAlignment == ContentAlignment::Center) {
+            // 搜索框等：基于窗口几何中心绝对居中
+            int sw = m_contentWidget->width();
+            int sh = m_contentWidget->height();
+            contentLeft = (w - sw) / 2;
+            m_contentWidget->setGeometry(contentLeft, (h - sh) / 2, sw, sh);
+        } else {
+            // 选项卡等：占据剩余空间，但暂不分配高度，后续和标题折叠一起处理
+        }
     }
 
-    int titleMaxRight = qMin(rightOffset, m_searchWidget ? searchLeft - ElementSpacing : rightOffset) - ElementSpacing;
+    int titleMaxRight = qMin(rightOffset, (m_contentWidget && m_contentAlignment == ContentAlignment::Center) ? contentLeft - ElementSpacing : rightOffset) - ElementSpacing;
 
     // --- WinUI 3 Compact Mode 折叠避让逻辑 ---
     int titleRequiredWidth = 0;
     if (!m_title.isEmpty()) {
-        titleRequiredWidth += m_titleLabel->fontMetrics().horizontalAdvance(m_titleLabel->text()) + 4 + TitleMarginRight;
+        titleRequiredWidth += m_titleLabel->fontMetrics().horizontalAdvance(m_titleLabel->text()) + 4 + TitleBarTitleMarginRight;
     }
     if (!m_subtitle.isEmpty()) {
-        titleRequiredWidth += m_subtitleLabel->fontMetrics().horizontalAdvance(m_subtitleLabel->text()) + 4 + ElementSpacing;
+        titleRequiredWidth += m_subtitleLabel->fontMetrics().horizontalAdvance(m_subtitleLabel->text()) + 4 + TitleBarSubtitleMarginRight;
     }
 
     bool shouldCompact = false;
-    if (m_searchWidget != nullptr || m_customContentWidget != nullptr) {
+    if (m_contentWidget != nullptr) {
         if (!m_isCompact) {
             // 检测是否发生挤压
             bool isSqueezed = false;
-            if (m_searchWidget && (currentX + titleRequiredWidth > searchLeft - ElementSpacing)) {
+            if (m_contentAlignment == ContentAlignment::Center && (currentX + titleRequiredWidth > contentLeft - ElementSpacing)) {
                 isSqueezed = true;
-            } else if (m_customContentWidget) {
+            } else if (m_contentAlignment == ContentAlignment::Stretch) {
                 int avail = titleMaxRight - currentX;
-                if (avail < titleRequiredWidth + m_customContentWidget->minimumSizeHint().width()) {
+                if (avail < titleRequiredWidth + m_contentWidget->minimumSizeHint().width()) {
                     isSqueezed = true;
                 }
             }
@@ -481,21 +488,21 @@ void TitleBar::updateLayout() {
             int titleWidth = m_titleLabel->fontMetrics().horizontalAdvance(m_titleLabel->text()) + 4;
             int availWidth = qMax(0, titleMaxRight - currentX);
             m_titleLabel->setGeometry(currentX, 0, qMin(titleWidth, availWidth), h);
-            currentX += qMin(titleWidth, availWidth) + TitleMarginRight;
+            currentX += qMin(titleWidth, availWidth) + TitleBarTitleMarginRight;
         }
 
         if (!m_subtitle.isEmpty()) {
             int subtitleWidth = m_subtitleLabel->fontMetrics().horizontalAdvance(m_subtitleLabel->text()) + 4;
             int availWidth = qMax(0, titleMaxRight - currentX);
             m_subtitleLabel->setGeometry(currentX, 0, qMin(subtitleWidth, availWidth), h);
-            currentX += qMin(subtitleWidth, availWidth) + ElementSpacing;
+            currentX += qMin(subtitleWidth, availWidth) + TitleBarSubtitleMarginRight;
         }
     }
 
     // 处理自适应延伸的自定义内容（非绝对居中）
-    if (m_customContentWidget) {
+    if (m_contentWidget && m_contentAlignment == ContentAlignment::Stretch) {
         int availWidth = qMax(0, titleMaxRight - currentX);
-        m_customContentWidget->setGeometry(currentX, (h - m_customContentWidget->height()) / 2, availWidth, m_customContentWidget->height());
+        m_contentWidget->setGeometry(currentX, (h - m_contentWidget->height()) / 2, availWidth, m_contentWidget->height());
     }
 
     // 同步基类以正确排除系统按钮区域的拖拽命中

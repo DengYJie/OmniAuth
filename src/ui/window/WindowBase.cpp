@@ -49,16 +49,14 @@ void WindowBase::setupWindowKit() {
         m_windowAgent->setSystemButton(QWK::WindowAgentBase::Close, closeBtn);
     }
 
-    // 保证导航按钮也不被当作标题栏拖拽区域吞噬点击
-    if (auto* backBtn = m_titleBar->backButton()) {
-        m_windowAgent->setHitTestVisible(backBtn, true);
-    }
-    if (auto* paneBtn = m_titleBar->paneToggleButton()) {
-        m_windowAgent->setHitTestVisible(paneBtn, true);
-    }
-    if (auto* iconBtn = m_titleBar->iconButton()) {
-        m_windowAgent->setHitTestVisible(iconBtn, true);
-    }
+    // 保证导航与自定义组件不被当作标题栏拖拽区域吞噬点击
+    if (auto* backBtn = m_titleBar->backButton()) m_windowAgent->setHitTestVisible(backBtn, true);
+    if (auto* paneBtn = m_titleBar->paneToggleButton()) m_windowAgent->setHitTestVisible(paneBtn, true);
+    if (auto* iconBtn = m_titleBar->iconButton()) m_windowAgent->setHitTestVisible(iconBtn, true);
+
+    if (auto* rightHeaderWidget = m_titleBar->rightHeaderWidget()) m_windowAgent->setHitTestVisible(rightHeaderWidget, true);
+    if (auto* contentWidget = m_titleBar->contentWidget()) m_windowAgent->setHitTestVisible(contentWidget, true);
+    if (auto* leftHeaderWidget = m_titleBar->leftHeaderWidget()) m_windowAgent->setHitTestVisible(leftHeaderWidget, true);
 
     applyPlatformWindowAttributes();
 }

@@ -31,8 +31,10 @@ public:
      * @brief 标题栏高度选项
      */
     enum class HeightOption {
-        Standard, // 标准高度：WinUI 3 默认 32px
-        Tall      // 扩展高度：用于容纳搜索框或用户卡片时 48px
+        // 标准高度: WinUI 3 默认 32px
+        Standard,
+        // 扩展高度: 容纳搜索框或用户卡片时 48px
+        Tall
     };
     Q_ENUM(HeightOption)
 
@@ -132,52 +134,58 @@ public:
     HeightOption heightOption() const;
 
     /**
-     * @brief 注入全局搜索框控件：绝对居中于窗口
-     * @param searchWidget 搜索框实例指针，为 nullptr 时移除并根据规则恢复标准高度
+     * @brief 内容区对齐方式
      */
-    void setSearchWidget(QWidget* searchWidget);
+    enum class ContentAlignment {
+        // 绝对居中对齐
+        Center,
+        // 自适应拉伸对齐
+        Stretch
+    };
+    Q_ENUM(ContentAlignment)
 
     /**
-     * @brief 获取全局搜索框控件
-     * @return 搜索框控件指针
+     * @brief 注入中间主内容区域
+     * @param contentWidget 自定义内容控件指针
+     * @param alignment 对齐方式
      */
-    QWidget* searchWidget() const;
+    void setContentWidget(QWidget* contentWidget, ContentAlignment alignment = ContentAlignment::Stretch);
 
     /**
-     * @brief 注入用户账户头像控件：停靠于系统控制按钮左侧
-     * @param accountWidget 账户头像控件指针，为 nullptr 时移除并根据规则恢复标准高度
+     * @brief 获取中间主内容区域控件
+     * @return 内容控件指针
      */
-    void setAccountWidget(QWidget* accountWidget);
+    QWidget* contentWidget() const;
 
     /**
-     * @brief 获取用户账户头像控件
-     * @return 账户头像控件指针
+     * @brief 获取当前中间内容区域的对齐方式
+     * @return 对齐方式枚举
      */
-    QWidget* accountWidget() const;
+    ContentAlignment contentAlignment() const;
 
     /**
-     * @brief 注入自定义左侧控制头内容：置于图标之前，返回/折叠按钮之后
-     * @param leftHeaderWidget 自定义左侧内容控件指针
+     * @brief 注入自定义右侧控制头内容
+     * @param rightHeaderWidget 右侧自定义控件指针 (例如用户头像区)
+     */
+    void setRightHeaderWidget(QWidget* rightHeaderWidget);
+
+    /**
+     * @brief 获取自定义右侧控制头内容控件
+     * @return 右侧自定义控件指针
+     */
+    QWidget* rightHeaderWidget() const;
+
+    /**
+     * @brief 注入自定义左侧控制头内容
+     * @param leftHeaderWidget 左侧自定义控件指针
      */
     void setLeftHeaderWidget(QWidget* leftHeaderWidget);
 
     /**
      * @brief 获取自定义左侧控制头内容控件
-     * @return 控件指针
+     * @return 左侧自定义控件指针
      */
     QWidget* leftHeaderWidget() const;
-
-    /**
-     * @brief 注入自定义内容控件：填充标题文本与右侧控件之间的空白区
-     * @param contentWidget 自定义内容控件指针
-     */
-    void setContentWidget(QWidget* contentWidget);
-
-    /**
-     * @brief 获取自定义内容控件
-     * @return 自定义内容控件指针
-     */
-    QWidget* contentWidget() const;
 
     /**
      * @brief 获取窗口系统图标按钮：用于 QWindowKit 注册原生系统菜单与双击关闭
@@ -313,9 +321,9 @@ private:
 
     // 自定义注入控件
     QWidget* m_leftHeaderWidget = nullptr;
-    QWidget* m_searchWidget = nullptr;
-    QWidget* m_accountWidget = nullptr;
-    QWidget* m_customContentWidget = nullptr;
+    QWidget* m_contentWidget = nullptr;
+    ContentAlignment m_contentAlignment = ContentAlignment::Stretch;
+    QWidget* m_rightHeaderWidget = nullptr;
 
     // 标题与导航控件
     fluent::basicinput::Button* m_backButton = nullptr;
