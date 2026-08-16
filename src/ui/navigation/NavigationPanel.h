@@ -165,6 +165,7 @@ namespace ui::navigation {
     private:
         bool m_isCompacted = false;
         bool m_surfaceVisible = false;
+        bool m_paneToggleExplicitlyHidden = false;
         float m_expandProgress = 1.0f;
         Orientation m_orientation = Orientation::Vertical;
 

@@ -36,8 +36,6 @@ void MainWindow::initWindow() {
     setBackdropEffect(fluent::windowing::BackdropEffect::Mica);
     setCustomWindowChromeEnabled(true);
 
-    // 主系统采用顶部导航栏
-    navigationView()->setDisplayMode(fluent::navigation::NavigationView::DisplayMode::Top);
 }
 
 void MainWindow::buildNavigation() {

@@ -236,7 +236,7 @@ namespace ui::navigation {
             // 强行约束所有加入 m_mainLayout 的条目，禁止它们在水平方向上吞噬多余空间
             // 确保所有的剩余空间(gap)完全被末尾的 addStretch 吃掉，从而保证 overflow 按钮紧贴最后一项
             QSizePolicy sp = widget->sizePolicy();
-            sp.setHorizontalPolicy(QSizePolicy::Fixed);
+            sp.setHorizontalPolicy(m_orientation == Orientation::Horizontal ? QSizePolicy::Fixed : QSizePolicy::Preferred);
             widget->setSizePolicy(sp);
 
             m_mainLayout->insertWidget(insertIdx, widget);
@@ -598,8 +598,17 @@ namespace ui::navigation {
         std::function<void(NavigationTreeWidget*)> visit = [&](NavigationTreeWidget* node) {
             if (!node)
                 return;
-            if (node->m_itemWidget)
+            if (node->m_itemWidget) {
                 node->m_itemWidget->setOrientation(orientation);
+                QSizePolicy sp = node->m_itemWidget->sizePolicy();
+                if (orientation == Orientation::Vertical) {
+                    node->m_itemWidget->setVisible(true);
+                    sp.setHorizontalPolicy(QSizePolicy::Preferred);
+                } else {
+                    sp.setHorizontalPolicy(QSizePolicy::Fixed);
+                }
+                node->m_itemWidget->setSizePolicy(sp);
+            }
             if (node->m_childrenContainer) {
                 if (orientation == Orientation::Horizontal) {
                     node->m_childrenContainer->hide();
@@ -619,6 +628,10 @@ namespace ui::navigation {
             header->setOrientation(orientation);
             header->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
             header->setVisible(true);
+            
+            QSizePolicy sp = header->sizePolicy();
+            sp.setHorizontalPolicy(orientation == Orientation::Vertical ? QSizePolicy::Preferred : QSizePolicy::Fixed);
+            header->setSizePolicy(sp);
         }
     }
 

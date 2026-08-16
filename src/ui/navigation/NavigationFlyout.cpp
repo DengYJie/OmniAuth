@@ -178,6 +178,7 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
         // 不调用 setExpanded：避免其 show 子容器到 m_mainLayout，容器显隐由导航布局统一管理
         connect(node, &NavigationTreeWidgetBase::expansionChanged, this,
             [this, root = root()](const QString& key, bool expanded) {
+                qDebug() << "[NavigationFlyout::expansionChanged] category:" << key << "expanded:" << expanded;
                 if (auto* target = root->nodeFor(key))
                     target->m_isExpanded = expanded;
                 emit expansionChanged(key, expanded);
@@ -221,8 +222,22 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
                 childLayout->setSpacing(0);
                 parentClone->m_childrenContainer = container;
                 parentClone->m_childrenLayout = childLayout;
-                const int idx = m_contentLayout->indexOf(parentClone->m_itemWidget) + 1;
-                m_contentLayout->insertWidget(idx, container);
+
+                // 参考主树机制：容器必须插入到父项控件所在的真实宿主布局中（紧随父项之后），
+                // 嵌套多级子分类的父项位于上级 childLayout 中，而非顶层 m_contentLayout
+                QBoxLayout* hostLayout = parentClone->m_itemWidget && parentClone->m_itemWidget->parentWidget()
+                    ? qobject_cast<QBoxLayout*>(parentClone->m_itemWidget->parentWidget()->layout())
+                    : m_contentLayout;
+
+                if (hostLayout) {
+                    const int idx = hostLayout->indexOf(parentClone->m_itemWidget) + 1;
+                    hostLayout->insertWidget(idx, container);
+                    qDebug() << "[NavigationFlyout::cloneNode] Created container for parent:" << parentClone->routeKey()
+                             << "inserted into hostLayout:" << hostLayout << "at index:" << idx;
+                } else {
+                    m_contentLayout->addWidget(container);
+                    qDebug() << "[NavigationFlyout::cloneNode] Fallback: added container to m_contentLayout for parent:" << parentClone->routeKey();
+                }
                 container->setVisible(parentClone->m_isExpanded);
             }
             parentClone->m_childrenLayout->addWidget(item);

@@ -181,12 +181,13 @@ namespace ui::navigation {
 
     bool NavigationPanel::isPaneToggleButtonVisible() const
     {
-        return m_paneToggleButton && m_paneToggleButton->isVisible();
+        return m_paneToggleButton && !m_paneToggleButton->isHidden();
     }
 
     void NavigationPanel::setPaneToggleButtonVisible(bool visible)
     {
-        if (m_paneToggleButton && m_paneToggleButton->isVisible() != visible) {
+        m_paneToggleExplicitlyHidden = !visible;
+        if (m_paneToggleButton && m_paneToggleButton->isHidden() == visible) {
             m_paneToggleButton->setVisible(visible);
             updateGeometry();
             emit paneToggleButtonVisibleChanged(visible);
@@ -391,7 +392,9 @@ namespace ui::navigation {
             m_layout->setStretch(2, 0);
         }
         else {
-            m_paneToggleButton->show();
+            if (!m_paneToggleExplicitlyHidden) {
+                m_paneToggleButton->show();
+            }
             setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
             m_layout->setContentsMargins(0, 0, 0, s.small);
             m_headerLayout->setContentsMargins(0, s.xSmall, 0, 0);
