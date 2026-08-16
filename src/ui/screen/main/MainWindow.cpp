@@ -41,7 +41,6 @@ void MainWindow::initWindow() {
 }
 
 void MainWindow::buildNavigation() {
-    panel()->setBackButtonVisible(true);
     // 概览
     addSectionHeader(QStringLiteral("概览"));
     addSubInterface(QStringLiteral("home"), createDummyPage(QStringLiteral("控制台概览")), Typography::Icons::Home, QStringLiteral("首页"));

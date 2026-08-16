@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <QPointer>
 #include <QVariantAnimation>
@@ -15,10 +15,6 @@
 
 class QPaintEvent;
 class QShowEvent;
-
-namespace fluent::navigation {
-    class NavigationView;
-}
 
 namespace ui::navigation {
 
@@ -103,12 +99,6 @@ namespace ui::navigation {
         NavigationToolButton* backButton() const { return m_backButton; }
         NavigationToolButton* paneToggleButton() const { return m_paneToggleButton; }
 
-        /**
-         * @brief 显式注入关联的 NavigationView，替代 parentWidget 隐式查找
-         * @param view 关联的 NavigationView，可为 nullptr 以解除关联
-         */
-        void setNavigationView(fluent::navigation::NavigationView* view);
-
         bool isBackButtonVisible() const;
         void setBackButtonVisible(bool visible);
 
@@ -156,8 +146,6 @@ namespace ui::navigation {
     private:
         void setupUi();
         void setSurfaceVisible(bool visible);
-        void applyDisplayMode(int mode);
-        void applyPaneDensity();
         void showFlyoutMenu(const QString& categoryKey, QWidget* anchorWidget);
         void showOverflowMenu(QWidget* anchorWidget, const QVector<NavigationOverflowEntry>& entries);
         void closeFlyoutMenu(bool animated = true);
@@ -174,9 +162,6 @@ namespace ui::navigation {
             PortalReturn,  // 指示条正在 flyout 内部：播放 Portal 归位动画
         };
 
-        void internalSetOrientation(Orientation orientation);
-        void internalSetCompacted(bool compacted);
-
     private:
         bool m_isCompacted = false;
         bool m_surfaceVisible = false;
@@ -189,14 +174,12 @@ namespace ui::navigation {
         NavigationToolButton* m_paneToggleButton = nullptr;
         NavigationTreeWidget* m_tree = nullptr;
         NavigationIndicator* m_indicator = nullptr;
-        QPointer<fluent::navigation::NavigationView> m_navigationView = nullptr;
         QWidget* m_userCardContainer = nullptr;
         QBoxLayout* m_userCardLayout = nullptr;
         QPointer<NavigationTreeItem> m_indicatorOwner;
         QPointer<NavigationTreeItem> m_visualIndicatorOwner;
 
-        QPointer<NavigationFlyout> m_compactFlyout;
-        QPointer<NavigationFlyout> m_overflowFlyout;
+        QPointer<NavigationFlyout> m_activeFlyout;
         FlyoutCloseIntent m_flyoutCloseIntent = FlyoutCloseIntent::None;
         QPointer<NavigationTreeItem> m_flyoutPrevOwner;
     };

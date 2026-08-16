@@ -97,7 +97,7 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
         setAttribute(Qt::WA_ShowWithoutActivating, true);
         setAutoFillBackground(false);
 
-        // 同步宿主主题覆盖，使 popup 与 panel 主题保持一致
+        // 同步宿主主题覆盖，使 flyout 与 panel 主题保持一致
         ::fluent::overlay::syncInheritedThemeOverride(this, host);
 
         // 四周留出阴影缓冲，使子部件严格限制在卡片内部
@@ -112,6 +112,19 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
         // 浮层内部指示条载体：配置为垂直模式，用于 Portal In 动画
         m_flyoutIndicator = new NavigationIndicator(this);
         m_flyoutIndicator->setOrientation(Orientation::Vertical);
+
+        // 权威状态同步：主树选中项变更时，实时同步浮层内所有克隆项的高亮选中态
+        if (rootTree) {
+            connect(rootTree, &NavigationTreeWidget::itemSelected, this, [this](const QString& selectedKey) {
+                for (auto it = m_itemIndex.begin(); it != m_itemIndex.end(); ++it) {
+                    NavigationTreeItem* item = it.value();
+                    if (!item) continue;
+                    const bool selected = (item->routeKey() == selectedKey
+                        || (root() && root()->isAncestorOf(selectedKey, item->routeKey())));
+                    item->setSelected(selected);
+                }
+            });
+        }
     }
 
     NavigationFlyout::~NavigationFlyout()

@@ -1,4 +1,4 @@
-﻿#include "ui/navigation/NavigationPanel.h"
+#include "ui/navigation/NavigationPanel.h"
 
 #include <QDynamicPropertyChangeEvent>
 #include <QEvent>
@@ -48,20 +48,7 @@ namespace ui::navigation {
         m_backButton = new NavigationToolButton(Typography::Icons::Back, this);
         m_backButton->setAccessibleItemName(QStringLiteral("Back"));
         m_backButton->setVisible(false);
-        connect(m_backButton, &NavigationPushButton::clicked, this, [this]() {
-            if (isVisible()) {
-                if (m_navigationView) {
-                    using DisplayMode = fluent::navigation::NavigationView::DisplayMode;
-                    const auto mode = m_navigationView->effectiveDisplayMode();
-                    if (m_navigationView->isPaneOpen()
-                        && (mode == DisplayMode::LeftCompact || mode == DisplayMode::LeftMinimal)) {
-                        m_navigationView->setPaneOpen(false);
-                        return;
-                    }
-                }
-            }
-            emit backRequested();
-            });
+        connect(m_backButton, &NavigationPushButton::clicked, this, &NavigationPanel::backRequested);
         m_headerLayout->addWidget(m_backButton, 0, Qt::AlignLeft);
 
         m_paneToggleButton = new NavigationToolButton(Typography::Icons::GlobalNav, this);
@@ -208,15 +195,6 @@ namespace ui::navigation {
 
     void NavigationPanel::setCompacted(bool compacted)
     {
-        if (m_navigationView) {
-            qWarning() << "NavigationPanel is managed by NavigationView. setCompacted() ignored.";
-            return;
-        }
-        internalSetCompacted(compacted);
-    }
-
-    void NavigationPanel::internalSetCompacted(bool compacted)
-    {
         if (m_isCompacted == compacted)
             return;
         m_isCompacted = compacted;
@@ -234,44 +212,9 @@ namespace ui::navigation {
         emit compactedChanged(m_isCompacted);
     }
 
-    void NavigationPanel::setNavigationView(fluent::navigation::NavigationView* view)
-    {
-        if (m_navigationView == view)
-            return;
-        m_navigationView = view;
-        if (!view)
-            return;
-
-        connect(view, &fluent::navigation::NavigationView::effectiveDisplayModeChanged,
-            this, [this](fluent::navigation::NavigationView::DisplayMode mode) {
-                applyDisplayMode(static_cast<int>(mode));
-            });
-        connect(view, &fluent::navigation::NavigationView::paneOpenChanged,
-            this, [this](bool) { applyPaneDensity(); });
-
-        // 注入时立即按当前显示模式同步一次，供初始布局对齐
-        applyDisplayMode(static_cast<int>(view->effectiveDisplayMode()));
-    }
-
-    void NavigationPanel::applyDisplayMode(int mode)
-    {
-        using DisplayMode = fluent::navigation::NavigationView::DisplayMode;
-        const auto dm = static_cast<DisplayMode>(mode);
-        internalSetOrientation(dm == DisplayMode::Top ? Orientation::Horizontal : Orientation::Vertical);
-        m_navigationView->setPaneOpen(dm == DisplayMode::Left || dm == DisplayMode::Top);
-    }
-
-    void NavigationPanel::applyPaneDensity()
-    {
-        if (!m_navigationView)
-            return;
-        internalSetCompacted(!m_navigationView->isPaneOpen());
-    }
-
     void NavigationPanel::togglePane()
     {
-        if (m_navigationView)
-            m_navigationView->setPaneOpen(!m_navigationView->isPaneOpen());
+        setCompacted(!m_isCompacted);
     }
 
     void NavigationPanel::setExpandProgress(float progress)
@@ -409,27 +352,15 @@ namespace ui::navigation {
     {
         QWidget::resizeEvent(event);
 
-        if (m_navigationView) {
-            const int expandedW = m_navigationView->expandedPaneWidth();
-            const int compactW = m_navigationView->compactPaneWidth();
-            if (expandedW > compactW) {
-                const float progress = qBound(0.0f, float(width() - compactW) / float(expandedW - compactW), 1.0f);
-                setExpandProgress(progress);
-            }
+        const int expandedW = Breakpoints::NavigationPaneExpandedWidth;
+        const int compactW = Breakpoints::NavigationPaneCompactWidth;
+        if (expandedW > compactW) {
+            const float progress = qBound(0.0f, float(width() - compactW) / float(expandedW - compactW), 1.0f);
+            setExpandProgress(progress);
         }
-
     }
 
     void NavigationPanel::setOrientation(Orientation orientation)
-    {
-        if (m_navigationView) {
-            qWarning() << "NavigationPanel is managed by NavigationView. setOrientation() ignored.";
-            return;
-        }
-        internalSetOrientation(orientation);
-    }
-
-    void NavigationPanel::internalSetOrientation(Orientation orientation)
     {
         if (m_orientation == orientation)
             return;
@@ -589,7 +520,12 @@ namespace ui::navigation {
         // 克隆该分类的子树（含递归子分类），保留展开/选中态；flyout 内分类可内联折叠
         flyout->rebuildSubtree(categoryKey);
 
-        m_compactFlyout = flyout;
+        connect(flyout, &NavigationFlyout::aboutToShow, this, [this, flyout]() {
+            m_activeFlyout = flyout;
+        });
+        connect(flyout, &NavigationFlyout::aboutToHide, this, [this, flyout]() {
+            if (m_activeFlyout == flyout) m_activeFlyout = nullptr;
+        });
 
         connect(this, &NavigationPanel::indicatorOwnerChanged, flyout, &NavigationFlyout::onIndicatorOwnerChanged);
 
@@ -639,22 +575,21 @@ namespace ui::navigation {
 
     void NavigationPanel::closeFlyoutMenu(bool animated)
     {
-        if (!m_compactFlyout)
+        if (!m_activeFlyout)
             return;
-        auto* popup = m_compactFlyout.data();
-        m_compactFlyout = nullptr;
+        auto* flyout = m_activeFlyout.data();
 
-        if (animated && popup->isVisible()) {
-            connect(popup, &NavigationFlyout::closed,
-                popup, &QObject::deleteLater);
-            popup->close();
+        if (animated && flyout->isVisible()) {
+            connect(flyout, &NavigationFlyout::closed,
+                flyout, &QObject::deleteLater);
+            flyout->close();
         }
         else {
             // 无动画时也必须走 close() 流程以保证 aboutToHide -> closed 生命周期闭环
-            popup->setExitAnimationEnabled(false);
-            connect(popup, &NavigationFlyout::closed,
-                popup, &QObject::deleteLater);
-            popup->close();
+            flyout->setExitAnimationEnabled(false);
+            connect(flyout, &NavigationFlyout::closed,
+                flyout, &QObject::deleteLater);
+            flyout->close();
         }
     }
 
@@ -673,7 +608,12 @@ namespace ui::navigation {
         // 克隆溢出条目子树（header 与节点按序渲染，分类可内联折叠）
         flyout->rebuildSubtreeFromEntries(entries);
 
-        m_overflowFlyout = flyout;
+        connect(flyout, &NavigationFlyout::aboutToShow, this, [this, flyout]() {
+            m_activeFlyout = flyout;
+        });
+        connect(flyout, &NavigationFlyout::aboutToHide, this, [this, flyout]() {
+            if (m_activeFlyout == flyout) m_activeFlyout = nullptr;
+        });
 
         connect(this, &NavigationPanel::indicatorOwnerChanged, flyout, &NavigationFlyout::onIndicatorOwnerChanged);
 
@@ -713,21 +653,20 @@ namespace ui::navigation {
 
     void NavigationPanel::closeOverflowMenu(bool animated)
     {
-        if (!m_overflowFlyout)
+        if (!m_activeFlyout)
             return;
-        auto* popup = m_overflowFlyout.data();
-        m_overflowFlyout = nullptr;
+        auto* flyout = m_activeFlyout.data();
 
-        if (animated && popup->isVisible()) {
-            connect(popup, &NavigationFlyout::closed,
-                popup, &QObject::deleteLater);
-            popup->close();
+        if (animated && flyout->isVisible()) {
+            connect(flyout, &NavigationFlyout::closed,
+                flyout, &QObject::deleteLater);
+            flyout->close();
         }
         else {
-            popup->setExitAnimationEnabled(false);
-            connect(popup, &NavigationFlyout::closed,
-                popup, &QObject::deleteLater);
-            popup->close();
+            flyout->setExitAnimationEnabled(false);
+            connect(flyout, &NavigationFlyout::closed,
+                flyout, &QObject::deleteLater);
+            flyout->close();
         }
     }
 
@@ -737,8 +676,7 @@ namespace ui::navigation {
             return;
 
         // 获取当前处于激活状态的 Flyout
-        NavigationFlyout* activeFlyout = m_compactFlyout ? m_compactFlyout.data() :
-            (m_overflowFlyout ? m_overflowFlyout.data() : nullptr);
+        NavigationFlyout* activeFlyout = m_activeFlyout.data();
 
         // O(1) 查找 Flyout 内部是否有克隆替身
         NavigationTreeItem* prevClone = activeFlyout && prevOwner ? activeFlyout->cloneItemFor(prevOwner->routeKey()) : nullptr;
@@ -746,8 +684,15 @@ namespace ui::navigation {
 
         if (activeFlyout && curClone && !curOwner->isCategory() && prevOwner != curOwner) {
             // 判决0（最高优先级）：真正的叶子项点击切换（非同节点状态刷新），Flyout 即将关闭，
-            // 不得在 flyout 内发起任何飞跃或绘制，起点终点推迟到 animateFlyoutClosed 统一接管
-            m_flyoutCloseIntent = FlyoutCloseIntent::LeafSlide;
+            // 检查前驱项是否也在当前浮层内：
+            // - 若 prevClone 也存在，说明前驱项与当前项均属于该浮层（共享同一主树分类代理或 overflow 锚点），
+            //   主面板无需跨项滑动，归位走 PortalReturn；
+            // - 若 prevClone 为空，说明前驱项在主树外部，主面板需执行 LeafSlide 跨项滑动。
+            if (prevClone) {
+                m_flyoutCloseIntent = FlyoutCloseIntent::PortalReturn;
+            } else {
+                m_flyoutCloseIntent = FlyoutCloseIntent::LeafSlide;
+            }
             m_flyoutPrevOwner = prevOwner;
             if (prevOwner) emit indicatorOwnerChanged(prevOwner, false);
             return;
@@ -850,6 +795,12 @@ namespace ui::navigation {
             case FlyoutCloseIntent::LeafSlide: {
                 // 完全贯通：交由 refreshIndicatorVisuals 统一处理同步、动画与信号分发
                 if (m_indicator) {
+                    if (prevOwner) {
+                        NavigationTreeItem* prevVisual = m_tree->getVisualProxyFor(prevOwner);
+                        if (prevVisual) {
+                            m_indicator->setInitialPosition(m_tree->indicatorRectInHost(prevVisual, this));
+                        }
+                    }
                     refreshIndicatorVisuals(true, prevOwner);
                 }
                 break;

@@ -1,8 +1,9 @@
-﻿#include "ui/window/NavigationWindow.h"
+#include "ui/window/NavigationWindow.h"
 #include <FluentQt/Navigation.h>
 
 #include "ui/navigation/NavigationIndicator.h"
 #include "ui/navigation/NavigationPanel.h"
+#include "ui/navigation/NavigationToolButton.h"
 #include "ui/navigation/NavigationWidget.h"
 
 NavigationWindow::NavigationWindow(QWidget* parent)
@@ -19,11 +20,58 @@ void NavigationWindow::initNavigation() {
 
     m_panel = new ui::navigation::NavigationPanel(m_navigationView);
     m_navigationView->setMainChromeWidget(m_panel);
-    m_panel->setNavigationView(m_navigationView);
 
     // 隐藏 NavigationPanel 自带的按钮，由 TitleBar 接管
     m_panel->setPaneToggleButtonVisible(false);
     m_panel->setBackButtonVisible(false);
+
+    // 同步 DisplayMode 变化至 Panel 的排列方向、NavigationView 的 Pane 展开状态及 TitleBar
+    auto syncDisplayMode = [this](fluent::navigation::NavigationView::DisplayMode mode) {
+        using DisplayMode = fluent::navigation::NavigationView::DisplayMode;
+        if (m_panel) {
+            m_panel->setOrientation(mode == DisplayMode::Top
+                ? ui::navigation::Orientation::Horizontal
+                : ui::navigation::Orientation::Vertical);
+        }
+        if (m_navigationView) {
+            m_navigationView->setPaneOpen(mode == DisplayMode::Left || mode == DisplayMode::Top);
+        }
+        if (titleBar()) {
+            titleBar()->setPaneToggleButtonVisible(mode != DisplayMode::Top);
+        }
+        };
+
+    connect(m_navigationView, &fluent::navigation::NavigationView::effectiveDisplayModeChanged,
+        this, syncDisplayMode);
+
+    // 同步 Pane 展开/收起状态至 Panel 的紧凑（折叠）模式
+    connect(m_navigationView, &fluent::navigation::NavigationView::paneOpenChanged,
+        this, [this](bool open) {
+            if (m_panel) {
+                m_panel->setCompacted(!open);
+            }
+        });
+
+    // Panel 的返回按钮逻辑：若在 Minimal/Compact 模式下抽屉展开，则返回先收起抽屉
+    connect(m_panel, &ui::navigation::NavigationPanel::backRequested, this, [this]() {
+        if (m_navigationView) {
+            using DisplayMode = fluent::navigation::NavigationView::DisplayMode;
+            const auto mode = m_navigationView->effectiveDisplayMode();
+            if (m_navigationView->isPaneOpen()
+                && (mode == DisplayMode::LeftCompact || mode == DisplayMode::LeftMinimal)) {
+                m_navigationView->setPaneOpen(false);
+            }
+        }
+        });
+
+    // Panel 自带的汉堡菜单按钮点击联动
+    if (m_panel->paneToggleButton()) {
+        connect(m_panel->paneToggleButton(), &ui::navigation::NavigationToolButton::clicked, this, [this]() {
+            if (m_navigationView) {
+                m_navigationView->setPaneOpen(!m_navigationView->isPaneOpen());
+            }
+            });
+    }
 
     // 启用 TitleBar 中的导航控件
     if (titleBar()) {
@@ -34,16 +82,12 @@ void NavigationWindow::initNavigation() {
                 m_navigationView->setPaneOpen(!m_navigationView->isPaneOpen());
             }
             });
+    }
 
-        connect(m_navigationView, &fluent::navigation::NavigationView::effectiveDisplayModeChanged,
-            this, [this](fluent::navigation::NavigationView::DisplayMode mode) {
-                if (titleBar()) {
-                    titleBar()->setPaneToggleButtonVisible(mode != fluent::navigation::NavigationView::DisplayMode::Top);
-                }
-            });
-
-        // 初始状态同步
-        titleBar()->setPaneToggleButtonVisible(m_navigationView->effectiveDisplayMode() != fluent::navigation::NavigationView::DisplayMode::Top);
+    // 初始状态同步
+    syncDisplayMode(m_navigationView->effectiveDisplayMode());
+    if (m_panel) {
+        m_panel->setCompacted(!m_navigationView->isPaneOpen());
     }
 
     connect(m_panel, &ui::navigation::NavigationPanel::itemSelected, this, [this](const QString& routeKey) {
