@@ -270,6 +270,21 @@ QWidget* TitleBar::accountWidget() const {
     return m_accountWidget;
 }
 
+void TitleBar::setLeftHeaderWidget(QWidget* leftHeaderWidget) {
+    if (m_leftHeaderWidget == leftHeaderWidget) return;
+    if (m_leftHeaderWidget) m_leftHeaderWidget->setParent(nullptr);
+    m_leftHeaderWidget = leftHeaderWidget;
+    if (m_leftHeaderWidget) {
+        m_leftHeaderWidget->setParent(this);
+        m_leftHeaderWidget->show();
+    }
+    updateLayout();
+}
+
+QWidget* TitleBar::leftHeaderWidget() const {
+    return m_leftHeaderWidget;
+}
+
 void TitleBar::setContentWidget(QWidget* contentWidget) {
     if (m_customContentWidget == contentWidget) return;
     if (m_customContentWidget) m_customContentWidget->setParent(nullptr);
@@ -371,14 +386,22 @@ void TitleBar::updateLayout() {
         currentX += AppTitleBarButtonWidth;
     }
 
-    // 左侧内容区域的起始需要一个安全间距（如果左侧没有按钮，默认左边距为16）
-    if (!m_backButtonVisible && !m_paneToggleButtonVisible) {
+    // LeftHeaderPresenter: 原生 WinUI 3 左侧自定义内容
+    if (m_leftHeaderWidget) {
+        m_leftHeaderWidget->setGeometry(currentX, (h - m_leftHeaderWidget->height()) / 2, m_leftHeaderWidget->width(), m_leftHeaderWidget->height());
+        currentX += m_leftHeaderWidget->width();
+    }
+
+    // 左侧内容区域的起始需要一个安全间距（如果左侧没有按钮/LeftHeader，默认左边距为16）
+    if (!m_backButtonVisible && !m_paneToggleButtonVisible && !m_leftHeaderWidget) {
         currentX += ElementSpacing;
+    } else if (m_leftHeaderWidget) {
+        currentX += ElementSpacing; // WinUI 规范中，如果有 LeftHeader，它和 Icon 之间有间距
     }
 
     if (!m_icon.isNull()) {
         m_iconButton->setGeometry(currentX, 0, AppTitleBarButtonWidth, h);
-        currentX += AppTitleBarButtonWidth; // 图标也是通过一个类似大小的区域放置
+        currentX += AppTitleBarButtonWidth;
     }
 
     int rightOffset = w;
@@ -406,21 +429,70 @@ void TitleBar::updateLayout() {
 
     int titleMaxRight = qMin(rightOffset, m_searchWidget ? searchLeft - ElementSpacing : rightOffset) - ElementSpacing;
 
+    // --- WinUI 3 Compact Mode 折叠避让逻辑 ---
+    int titleRequiredWidth = 0;
     if (!m_title.isEmpty()) {
-        // 增加 4px 容差，防止因高 DPI 缩放下的浮点舍入或字距计算误差导致 elidedText 误认为空间不足而截断
-        int titleWidth = m_titleLabel->fontMetrics().horizontalAdvance(m_titleLabel->text()) + 4;
-        int availWidth = qMax(0, titleMaxRight - currentX);
-        m_titleLabel->setGeometry(currentX, 0, qMin(titleWidth, availWidth), h);
-        currentX += qMin(titleWidth, availWidth) + TitleMarginRight;
+        titleRequiredWidth += m_titleLabel->fontMetrics().horizontalAdvance(m_titleLabel->text()) + 4 + TitleMarginRight;
     }
-
     if (!m_subtitle.isEmpty()) {
-        int subtitleWidth = m_subtitleLabel->fontMetrics().horizontalAdvance(m_subtitleLabel->text()) + 4;
-        int availWidth = qMax(0, titleMaxRight - currentX);
-        m_subtitleLabel->setGeometry(currentX, 0, qMin(subtitleWidth, availWidth), h);
-        currentX += qMin(subtitleWidth, availWidth) + ElementSpacing;
+        titleRequiredWidth += m_subtitleLabel->fontMetrics().horizontalAdvance(m_subtitleLabel->text()) + 4 + ElementSpacing;
     }
 
+    bool shouldCompact = false;
+    if (m_searchWidget != nullptr || m_customContentWidget != nullptr) {
+        if (!m_isCompact) {
+            // 检测是否发生挤压
+            bool isSqueezed = false;
+            if (m_searchWidget && (currentX + titleRequiredWidth > searchLeft - ElementSpacing)) {
+                isSqueezed = true;
+            } else if (m_customContentWidget) {
+                int avail = titleMaxRight - currentX;
+                if (avail < titleRequiredWidth + m_customContentWidget->minimumSizeHint().width()) {
+                    isSqueezed = true;
+                }
+            }
+            if (isSqueezed) {
+                m_compactModeThresholdWidth = w;
+                m_isCompact = true;
+                shouldCompact = true;
+            }
+        } else {
+            // 已处于折叠态，如果宽度恢复到记录的临界值，则展开
+            if (w >= m_compactModeThresholdWidth) {
+                m_compactModeThresholdWidth = 0;
+                m_isCompact = false;
+                shouldCompact = false;
+            } else {
+                shouldCompact = true;
+            }
+        }
+    } else {
+        m_isCompact = false;
+    }
+
+    if (shouldCompact) {
+        m_titleLabel->hide();
+        m_subtitleLabel->hide();
+    } else {
+        if (!m_title.isEmpty()) m_titleLabel->show();
+        if (!m_subtitle.isEmpty()) m_subtitleLabel->show();
+
+        if (!m_title.isEmpty()) {
+            int titleWidth = m_titleLabel->fontMetrics().horizontalAdvance(m_titleLabel->text()) + 4;
+            int availWidth = qMax(0, titleMaxRight - currentX);
+            m_titleLabel->setGeometry(currentX, 0, qMin(titleWidth, availWidth), h);
+            currentX += qMin(titleWidth, availWidth) + TitleMarginRight;
+        }
+
+        if (!m_subtitle.isEmpty()) {
+            int subtitleWidth = m_subtitleLabel->fontMetrics().horizontalAdvance(m_subtitleLabel->text()) + 4;
+            int availWidth = qMax(0, titleMaxRight - currentX);
+            m_subtitleLabel->setGeometry(currentX, 0, qMin(subtitleWidth, availWidth), h);
+            currentX += qMin(subtitleWidth, availWidth) + ElementSpacing;
+        }
+    }
+
+    // 处理自适应延伸的自定义内容（非绝对居中）
     if (m_customContentWidget) {
         int availWidth = qMax(0, titleMaxRight - currentX);
         m_customContentWidget->setGeometry(currentX, (h - m_customContentWidget->height()) / 2, availWidth, m_customContentWidget->height());

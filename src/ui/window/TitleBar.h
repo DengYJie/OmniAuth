@@ -156,6 +156,18 @@ public:
     QWidget* accountWidget() const;
 
     /**
+     * @brief 注入自定义左侧控制头内容：置于图标之前，返回/折叠按钮之后
+     * @param leftHeaderWidget 自定义左侧内容控件指针
+     */
+    void setLeftHeaderWidget(QWidget* leftHeaderWidget);
+
+    /**
+     * @brief 获取自定义左侧控制头内容控件
+     * @return 控件指针
+     */
+    QWidget* leftHeaderWidget() const;
+
+    /**
      * @brief 注入自定义内容控件：填充标题文本与右侧控件之间的空白区
      * @param contentWidget 自定义内容控件指针
      */
@@ -295,7 +307,12 @@ private:
     bool m_paneToggleButtonVisible = false;
     HeightOption m_heightOption = HeightOption::Standard;
 
+    // 内部状态跟踪
+    bool m_isCompact = false;
+    int m_compactModeThresholdWidth = 0;
+
     // 自定义注入控件
+    QWidget* m_leftHeaderWidget = nullptr;
     QWidget* m_searchWidget = nullptr;
     QWidget* m_accountWidget = nullptr;
     QWidget* m_customContentWidget = nullptr;

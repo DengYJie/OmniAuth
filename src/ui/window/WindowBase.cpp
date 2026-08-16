@@ -41,15 +41,12 @@ void WindowBase::setupWindowKit() {
     // 连接到 ui::window::TitleBar 自带的系统控制按钮
     if (auto* minimizeBtn = m_titleBar->minimizeButton()) {
         m_windowAgent->setSystemButton(QWK::WindowAgentBase::Minimize, minimizeBtn);
-        m_windowAgent->setHitTestVisible(minimizeBtn, true);
     }
     if (auto* maximizeBtn = m_titleBar->maximizeButton()) {
         m_windowAgent->setSystemButton(QWK::WindowAgentBase::Maximize, maximizeBtn);
-        m_windowAgent->setHitTestVisible(maximizeBtn, true);
     }
     if (auto* closeBtn = m_titleBar->closeButton()) {
         m_windowAgent->setSystemButton(QWK::WindowAgentBase::Close, closeBtn);
-        m_windowAgent->setHitTestVisible(closeBtn, true);
     }
 
     // 保证导航按钮也不被当作标题栏拖拽区域吞噬点击

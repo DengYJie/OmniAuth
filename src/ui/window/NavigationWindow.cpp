@@ -1,4 +1,4 @@
-#include "ui/window/NavigationWindow.h"
+﻿#include "ui/window/NavigationWindow.h"
 #include <FluentQt/Navigation.h>
 
 #include "ui/navigation/NavigationIndicator.h"
@@ -21,6 +21,31 @@ void NavigationWindow::initNavigation() {
     m_navigationView->setMainChromeWidget(m_panel);
     m_panel->setNavigationView(m_navigationView);
 
+    // 隐藏 NavigationPanel 自带的按钮，由 TitleBar 接管
+    m_panel->setPaneToggleButtonVisible(false);
+    m_panel->setBackButtonVisible(false);
+
+    // 启用 TitleBar 中的导航控件
+    if (titleBar()) {
+        titleBar()->setBackButtonVisible(false);
+
+        connect(titleBar(), &ui::window::TitleBar::paneToggleButtonClicked, this, [this]() {
+            if (m_navigationView) {
+                m_navigationView->setPaneOpen(!m_navigationView->isPaneOpen());
+            }
+            });
+
+        connect(m_navigationView, &fluent::navigation::NavigationView::effectiveDisplayModeChanged,
+            this, [this](fluent::navigation::NavigationView::DisplayMode mode) {
+                if (titleBar()) {
+                    titleBar()->setPaneToggleButtonVisible(mode != fluent::navigation::NavigationView::DisplayMode::Top);
+                }
+            });
+
+        // 初始状态同步
+        titleBar()->setPaneToggleButtonVisible(m_navigationView->effectiveDisplayMode() != fluent::navigation::NavigationView::DisplayMode::Top);
+    }
+
     connect(m_panel, &ui::navigation::NavigationPanel::itemSelected, this, [this](const QString& routeKey) {
         switchTo(routeKey);
         });
@@ -42,7 +67,7 @@ void NavigationWindow::addSectionHeader(const QString& text) {
 }
 
 void NavigationWindow::addWidget(ui::navigation::NavigationWidget* widget,
-                                 ui::navigation::NavigationItemPosition position) {
+    ui::navigation::NavigationItemPosition position) {
     if (m_panel) {
         m_panel->addWidget(widget, position);
     }
@@ -68,7 +93,7 @@ void NavigationWindow::addSubInterface(
     }
 
     m_panel->addItem(routeKey, iconGlyph, text, parentRouteKey, pos,
-                     selectable && (interfaceWidget != nullptr));
+        selectable && (interfaceWidget != nullptr));
 }
 
 void NavigationWindow::switchTo(const QString& routeKey) {
