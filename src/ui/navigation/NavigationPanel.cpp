@@ -1,6 +1,5 @@
-#include "ui/navigation/NavigationPanel.h"
+﻿#include "ui/navigation/NavigationPanel.h"
 
-#include <QDebug>
 #include <QDynamicPropertyChangeEvent>
 #include <QEvent>
 #include <QPainter>
@@ -86,7 +85,9 @@ namespace ui::navigation {
             });
 
         connect(m_tree, &NavigationTreeWidget::itemSelected, this,
-            &NavigationPanel::itemSelected);
+            [this](const QString& routeKey) {
+                emit itemSelected(routeKey);
+            });
         connect(m_tree, &NavigationTreeWidget::categoryActivated, this,
             [this](const QString& categoryKey, QWidget* anchorWidget) {
                 showFlyoutMenu(categoryKey, anchorWidget);
@@ -128,8 +129,11 @@ namespace ui::navigation {
         m_tree->addWidget(widget, position);
     }
 
+
+
     void NavigationPanel::setCurrentItem(const QString& routeKey)
     {
+        if (!m_tree || routeKey.isEmpty()) return;
         NavigationTreeItem* prevOwner = m_indicatorOwner;
         m_tree->setCurrentItem(routeKey, false);
         NavigationTreeWidget* node = m_tree->nodeFor(routeKey);
@@ -286,68 +290,68 @@ namespace ui::navigation {
 
     void NavigationPanel::refreshIndicatorVisuals(bool animated, NavigationTreeItem* prevLogicalOwner)
     {
-        if (!m_tree || !m_indicator || !m_indicatorOwner)
+        if (!m_indicator || !m_tree || !m_indicatorOwner) return;
+
+        // 获取逻辑 owner 对应的真实视觉代理
+        NavigationTreeItem* prevVisual = prevLogicalOwner ? m_tree->getVisualProxyFor(prevLogicalOwner) : nullptr;
+        NavigationTreeItem* curVisual = m_indicatorOwner ? m_tree->getVisualProxyFor(m_indicatorOwner) : nullptr;
+
+        NavigationWidget* prevProxy = prevVisual ? prevVisual : (prevLogicalOwner ? prevLogicalOwner : nullptr);
+        NavigationWidget* curProxy = curVisual ? curVisual : (m_indicatorOwner ? m_indicatorOwner.data() : nullptr);
+
+        if (!prevProxy || !curProxy) {
+            animated = false;
+        }
+
+        // 如果之前的 proxy 不可见，强制降级为无动画瞬发（防止坐标乱飞）
+        if (prevProxy && prevProxy->isHidden()) {
+            animated = false;
+        }
+
+        const QRectF targetRect = m_tree->indicatorRectInHost(curProxy, this);
+
+        if (!curProxy || curProxy->isHidden()) {
+            m_indicator->activateAt(targetRect, false);
             return;
-
-        NavigationTreeItem* prevVisual = m_visualIndicatorOwner.data();
-        NavigationTreeItem* curVisual = m_tree->getVisualProxyFor(m_indicatorOwner);
-
-        // 1. 同步物理起点：仅当存在真实逻辑切换，且物理指示条需要滑行时
-        if (animated && prevLogicalOwner && prevLogicalOwner != m_indicatorOwner) {
-            NavigationTreeItem* prevProxy = m_visualIndicatorOwner ? m_visualIndicatorOwner.data() : m_tree->getVisualProxyFor(prevLogicalOwner);
-            if (prevProxy && !prevProxy->isHidden()) {
-                const QRectF prevRect = m_tree->indicatorRectInHost(prevProxy, this);
-                m_indicator->setInitialPosition(prevRect);
-            } else {
-                // 原逻辑节点的替身由于 overflow 更新等原因被隐藏不可见，取消跨越动画直接就位
-                animated = false;
-            }
         }
 
-        // 2. 瞬时维护替身指针
-        if (prevVisual && prevVisual != curVisual) {
-            prevVisual->setShowIndicator(false);
+        QRectF startRect;
+        if (animated && m_indicator->currentRect().isValid() && m_indicator->currentRect().width() > 0) {
+            startRect = m_indicator->currentRect();
+        } else {
+            startRect = m_tree->indicatorRectInHost(prevProxy, this);
         }
-        m_visualIndicatorOwner = curVisual;
 
+        // 常显指示条转移
+        if (m_visualIndicatorOwner) {
+            m_visualIndicatorOwner->setShowIndicator(false);
+        }
         if (curVisual) {
-            const QRectF targetRect = m_tree->indicatorRectInHost(curVisual, this);
-
-            if (!animated) {
-                m_indicator->activateAt(targetRect, false);
-                curVisual->setShowIndicator(true);
-                // 无动画时立即通知就绪
-                if (prevLogicalOwner && prevLogicalOwner != m_indicatorOwner) {
-                    emit indicatorOwnerChanged(prevLogicalOwner, false);
-                }
-                emit indicatorOwnerChanged(m_indicatorOwner, true);
-            }
-            else {
-                // 起飞信号：熄灭旧逻辑节点
-                if (prevLogicalOwner && prevLogicalOwner != m_indicatorOwner) {
-                    connect(m_indicator, &NavigationIndicator::flightStarted, this, [this, prevLogicalOwner]() {
-                        emit indicatorOwnerChanged(prevLogicalOwner, false);
-                        }, Qt::SingleShotConnection);
-                }
-
-                // 降落信号：点亮新替身，并广播新逻辑节点
-                connect(m_indicator, &NavigationIndicator::flightFinished, this, [this, curVisual, prevLogicalOwner]() {
-                    if (m_visualIndicatorOwner == curVisual) {
-                        curVisual->setShowIndicator(true);
-                    }
-                    if (prevLogicalOwner) { // 仅当由导航事件触发时，才发射 indicatorOwnerChanged
-                        emit indicatorOwnerChanged(m_indicatorOwner, true);
-                    }
-                    }, Qt::SingleShotConnection);
-
-                m_indicator->activateAt(targetRect, true);
-            }
+            m_visualIndicatorOwner = curVisual;
+        } else {
+            m_visualIndicatorOwner = m_indicatorOwner;
         }
-        else {
-            m_indicator->hideIndicator();
-            if (prevLogicalOwner && prevLogicalOwner != m_indicatorOwner) {
-                emit indicatorOwnerChanged(prevLogicalOwner, false);
+
+        // 接管所有动画生命周期信号，防止信号交错
+        m_indicator->disconnect(SIGNAL(flightFinished()));
+        m_indicator->disconnect(SIGNAL(flightStarted()));
+
+        connect(m_indicator, &NavigationIndicator::flightStarted, this, [this, prevLogicalOwner]() {
+            if (prevLogicalOwner) emit indicatorOwnerChanged(prevLogicalOwner, false);
+            }, Qt::SingleShotConnection);
+
+        connect(m_indicator, &NavigationIndicator::flightFinished, this, [this]() {
+            if (m_visualIndicatorOwner) m_visualIndicatorOwner->setShowIndicator(true);
+            if (m_indicatorOwner) emit indicatorOwnerChanged(m_indicatorOwner, true);
+            }, Qt::SingleShotConnection);
+
+        if (animated) {
+            if (startRect.isValid()) {
+                m_indicator->setInitialPosition(startRect);
             }
+            m_indicator->activateAt(targetRect, true);
+        } else {
+            m_indicator->activateAt(targetRect, false);
         }
     }
 
@@ -530,8 +534,10 @@ namespace ui::navigation {
         }
 
         // flyout 已定位，用 mapToGlobal 直接取真实全局几何（含翻转/clamp 后的最终位置）
-        const QRectF flyoutRect = curClone->indicatorRect();
-        const QPointF globalTargetTopLeft = curClone->mapToGlobal(flyoutRect.topLeft().toPoint());
+        NavigationTreeItem* visualTarget = flyout->getVisualProxyFor(curClone);
+        if (!visualTarget) visualTarget = curClone;
+        const QRectF flyoutRect = visualTarget->indicatorRect();
+        const QPointF globalTargetTopLeft = visualTarget->mapToGlobal(flyoutRect.topLeft().toPoint());
         const QRectF globalTargetRect(globalTargetTopLeft, flyoutRect.size());
 
         const QPointF globalStartTopLeft = this->mapToGlobal(topHostStartRect.topLeft().toPoint());
@@ -589,9 +595,13 @@ namespace ui::navigation {
 
         // flyout 内展开状态改变：如果改变的是当前选中项的祖先，重新派发内部滑动动画
         connect(flyout, &NavigationFlyout::expansionChanged, this,
-            [this](const QString& routeKey, bool /*expanded*/) {
-                if (m_indicatorOwner && m_tree->isAncestorOf(m_indicatorOwner->routeKey(), routeKey)) {
-                    dispatchIndicatorAnimation(m_indicatorOwner, m_indicatorOwner);
+            [this, flyoutPtr = QPointer<NavigationFlyout>(flyout)](const QString& routeKey, bool /*expanded*/) {
+                if (flyoutPtr && m_indicatorOwner && m_tree->isAncestorOf(m_indicatorOwner->routeKey(), routeKey)) {
+                    QTimer::singleShot(0, this, [this, flyoutPtr]() {
+                        if (flyoutPtr) {
+                            dispatchIndicatorAnimation(m_indicatorOwner, m_indicatorOwner);
+                        }
+                    });
                 }
             });
 
@@ -671,9 +681,13 @@ namespace ui::navigation {
 
         // flyout 内展开状态改变：如果改变的是当前选中项的祖先，重新派发内部滑动动画
         connect(flyout, &NavigationFlyout::expansionChanged, this,
-            [this](const QString& routeKey, bool /*expanded*/) {
-                if (m_indicatorOwner && m_tree->isAncestorOf(m_indicatorOwner->routeKey(), routeKey)) {
-                    dispatchIndicatorAnimation(m_indicatorOwner, m_indicatorOwner);
+            [this, flyoutPtr = QPointer<NavigationFlyout>(flyout)](const QString& routeKey, bool /*expanded*/) {
+                if (flyoutPtr && m_indicatorOwner && m_tree->isAncestorOf(m_indicatorOwner->routeKey(), routeKey)) {
+                    QTimer::singleShot(0, this, [this, flyoutPtr]() {
+                        if (flyoutPtr) {
+                            dispatchIndicatorAnimation(m_indicatorOwner, m_indicatorOwner);
+                        }
+                    });
                 }
             });
 
@@ -719,7 +733,8 @@ namespace ui::navigation {
 
     void NavigationPanel::dispatchIndicatorAnimation(NavigationTreeItem* prevOwner, NavigationTreeItem* curOwner)
     {
-        if (!curOwner) return;
+        if (!curOwner)
+            return;
 
         // 获取当前处于激活状态的 Flyout
         NavigationFlyout* activeFlyout = m_compactFlyout ? m_compactFlyout.data() :
@@ -729,8 +744,8 @@ namespace ui::navigation {
         NavigationTreeItem* prevClone = activeFlyout && prevOwner ? activeFlyout->cloneItemFor(prevOwner->routeKey()) : nullptr;
         NavigationTreeItem* curClone = activeFlyout ? activeFlyout->cloneItemFor(curOwner->routeKey()) : nullptr;
 
-        if (activeFlyout && curClone && !curOwner->isCategory()) {
-            // 判决0（最高优先级）：叶子项点击，Flyout 即将关闭，
+        if (activeFlyout && curClone && !curOwner->isCategory() && prevOwner != curOwner) {
+            // 判决0（最高优先级）：真正的叶子项点击切换（非同节点状态刷新），Flyout 即将关闭，
             // 不得在 flyout 内发起任何飞跃或绘制，起点终点推迟到 animateFlyoutClosed 统一接管
             m_flyoutCloseIntent = FlyoutCloseIntent::LeafSlide;
             m_flyoutPrevOwner = prevOwner;

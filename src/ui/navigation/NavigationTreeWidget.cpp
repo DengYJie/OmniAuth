@@ -3,7 +3,6 @@
 #include <functional>
 
 #include <QDateTime>
-#include <QDebug>
 #include <QEasingCurve>
 #include <QEvent>
 #include <QGuiApplication>
@@ -230,6 +229,13 @@ namespace ui::navigation {
             const int insertIdx = (m_overflowButton && m_mainLayout->indexOf(m_overflowButton) >= 0)
                 ? m_mainLayout->indexOf(m_overflowButton)
                 : m_mainLayout->count() - 1;
+            
+            // 强行约束所有加入 m_mainLayout 的条目，禁止它们在水平方向上吞噬多余空间
+            // 确保所有的剩余空间(gap)完全被末尾的 addStretch 吃掉，从而保证 overflow 按钮紧贴最后一项
+            QSizePolicy sp = widget->sizePolicy();
+            sp.setHorizontalPolicy(QSizePolicy::Fixed);
+            widget->setSizePolicy(sp);
+            
             m_mainLayout->insertWidget(insertIdx, widget);
         }
     }
@@ -349,8 +355,9 @@ namespace ui::navigation {
                 m_pinnedCategoryKey = anchor->routeKey();
             }
 
-            if (updateOverflow)
+            if (updateOverflow) {
                 computeOverflow(false);
+            }
 
             emit itemSelected(routeKey);
             return;
@@ -814,9 +821,8 @@ namespace ui::navigation {
 
         // 窗口一缩小即立即撤销粘性保护——不等到放不下才取消
         if (m_lastTopAvailableWidth > 0 && availableWidth < m_lastTopAvailableWidth) {
-            if (!m_pinnedCategoryKey.isEmpty()) {
+            if (!m_pinnedCategoryKey.isEmpty())
                 m_pinnedCategoryKey.clear();
-            }
         }
 
         // 收集顶级条目（O(n)，预建哈希替代 O(n×m) 双层线性搜索）
@@ -905,42 +911,13 @@ namespace ui::navigation {
             int remainingWidth = availableWidth - overflowBtnWidth;
             QVector<bool> isVisible(entries.size(), false);
 
-            // 第一遍：按自然顺序线性填充（从 0 到 N-1）
-            for (int i = 0; i < entries.size(); ++i) {
-                if (entries[i].width <= remainingWidth) {
-                    isVisible[i] = true;
-                    remainingWidth -= entries[i].width;
-                }
-                else {
-                    break;
-                }
+            // Pass 1: 提前预扣“核心粘性项”的空间（End-Pinning 保护机制）
+            // 确保当前选中项（selectedIdx）和历史粘性项（pinIdx）始终有空间
+            if (selectedIdx >= 0) {
+                remainingWidth -= entries[selectedIdx].width;
+                isVisible[selectedIdx] = true;
             }
 
-            // 第二遍：末端吸附策略（End Pinning）
-            // 目标 1（核心保护）：当前选中项所在的根节点（selectedIdx）
-            // 无论选中的是顶级项还是深层子项，只要该顶级根节点未能自然进入栏内，
-            // 必须从末尾倒序挤出非选中项，将其固定在栏内最右端
-            if (selectedIdx >= 0 && !isVisible[selectedIdx]) {
-                const int needed = entries[selectedIdx].width;
-
-                // 倒序挤出末端条目直到空间足够
-                for (int i = entries.size() - 1; i >= 0; --i) {
-                    if (remainingWidth >= needed)
-                        break;
-                    if (isVisible[i] && i != selectedIdx) {
-                        isVisible[i] = false;
-                        remainingWidth += entries[i].width;
-                    }
-                }
-
-                if (remainingWidth >= needed) {
-                    isVisible[selectedIdx] = true;
-                    remainingWidth -= needed;
-                }
-            }
-
-            // 目标 2（次级粘性保留）：非当前选中的历史粘性项（m_pinnedCategoryKey）
-            // 当用户切换到栏内自然可见项时，历史粘性项在未缩放窗口的前提下继续保留在栏内
             int pinIdx = -1;
             if (!m_pinnedCategoryKey.isEmpty()) {
                 for (int i = 0; i < entries.size(); ++i) {
@@ -950,26 +927,28 @@ namespace ui::navigation {
                     }
                 }
             }
+            if (pinIdx >= 0 && pinIdx != selectedIdx) {
+                remainingWidth -= entries[pinIdx].width;
+                isVisible[pinIdx] = true;
+            }
 
-            if (pinIdx >= 0 && !isVisible[pinIdx] && pinIdx != selectedIdx) {
-                const int needed = entries[pinIdx].width;
-
-                // 倒序挤出末端条目（避开 active 选中项和 sticky 项自身）直到空间足够
-                for (int i = entries.size() - 1; i >= 0; --i) {
-                    if (remainingWidth >= needed)
-                        break;
-                    if (isVisible[i] && i != pinIdx && i != selectedIdx) {
-                        isVisible[i] = false;
-                        remainingWidth += entries[i].width;
-                    }
+            // 如果连必须常驻的项都放不下（极端情况），就让 remainingWidth 变负，后续不再分配
+            
+            // Pass 2: 贪心缝隙填充（Greedy Fill）
+            // 剔除掉超大项（不 break），继续利用剩余宽度吸纳后续较小的项，实现完美“捡漏”
+            for (int i = 0; i < entries.size(); ++i) {
+                // 如果已经被保留，直接跳过计算
+                if (i == selectedIdx || i == pinIdx) {
+                    continue; 
                 }
 
-                if (remainingWidth >= needed) {
-                    isVisible[pinIdx] = true;
-                    remainingWidth -= needed;
-                }
-                else {
-                    m_pinnedCategoryKey.clear();
+                if (entries[i].width <= remainingWidth) {
+                    isVisible[i] = true;
+                    remainingWidth -= entries[i].width;
+                } else {
+                    isVisible[i] = false;
+                    // 注意：这里绝不能 break！
+                    // 遇到装不下的项（例如很宽的 dev），只剔除它，剩下的空间可能还够装后面的 notify 或 msg。
                 }
             }
 
@@ -994,6 +973,7 @@ namespace ui::navigation {
                 const bool overflowSelected = (selectedIdx >= 0 && !isVisible[selectedIdx]);
                 m_overflowButton->setSelected(overflowSelected);
             }
+
         }
 
         if (layoutChanged) {

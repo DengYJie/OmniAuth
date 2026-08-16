@@ -530,6 +530,7 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
         if (!m_exitAnimationEnabled || NavigationWidget::isReducedMotion()) {
             hide();
             emit closed();
+            this->deleteLater();
             return;
         }
 
@@ -571,6 +572,7 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
             hide();
             emit closed();
             closeGroup->deleteLater();
+            this->deleteLater();
         });
 
         closeGroup->start();
