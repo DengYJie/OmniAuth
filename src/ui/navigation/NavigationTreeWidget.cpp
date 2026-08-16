@@ -3,6 +3,7 @@
 #include <functional>
 
 #include <QDateTime>
+#include <QDebug>
 #include <QEasingCurve>
 #include <QEvent>
 #include <QGuiApplication>
@@ -77,6 +78,8 @@ namespace ui::navigation {
         m_overflowButton->setAnimatedMove(true);
         m_overflowButton->hide();
         connect(m_overflowButton, &NavigationToolButton::clicked, this, [this]() {
+            qDebug() << "[NavigationTree::onOverflowButtonClicked] Clicked 'More' button, emitting overflowMenuRequested with"
+                << overflowEntries().size() << "entries";
             emit overflowMenuRequested(m_overflowButton, overflowEntries());
             });
         m_mainLayout->insertWidget(m_mainLayout->count() - 1, m_overflowButton);
@@ -229,13 +232,13 @@ namespace ui::navigation {
             const int insertIdx = (m_overflowButton && m_mainLayout->indexOf(m_overflowButton) >= 0)
                 ? m_mainLayout->indexOf(m_overflowButton)
                 : m_mainLayout->count() - 1;
-            
+
             // 强行约束所有加入 m_mainLayout 的条目，禁止它们在水平方向上吞噬多余空间
             // 确保所有的剩余空间(gap)完全被末尾的 addStretch 吃掉，从而保证 overflow 按钮紧贴最后一项
             QSizePolicy sp = widget->sizePolicy();
             sp.setHorizontalPolicy(QSizePolicy::Fixed);
             widget->setSizePolicy(sp);
-            
+
             m_mainLayout->insertWidget(insertIdx, widget);
         }
     }
@@ -345,15 +348,24 @@ namespace ui::navigation {
             if (!anchor->m_itemWidget)
                 return;
 
-            if (NavigationTreeWidget* old = nodeFor(m_currentRouteKey); old && old->m_itemWidget)
+            NavigationTreeWidget* oldAnchor = nullptr;
+            if (NavigationTreeWidget* old = nodeFor(m_currentRouteKey); old && old->m_itemWidget) {
                 old->m_itemWidget->setSelected(false);
+                oldAnchor = old;
+                while (oldAnchor->m_parentNode && oldAnchor->m_parentNode != m_root) {
+                    oldAnchor = oldAnchor->m_parentNode;
+                }
+            }
+
+            // 相当于深度为 2 的 LRU 机制（Selected + Pinned）。
+            if (oldAnchor && oldAnchor != anchor) {
+                m_pinnedCategoryKey = oldAnchor->routeKey();
+            }
 
             m_currentRouteKey = routeKey;
             node->m_itemWidget->setSelected(true);
 
-            if (m_overflowNodes.contains(anchor) || !anchor->m_itemWidget->isVisible()) {
-                m_pinnedCategoryKey = anchor->routeKey();
-            }
+            const bool wasInOverflow = m_overflowNodes.contains(anchor) || !anchor->m_itemWidget->isVisible();
 
             if (updateOverflow) {
                 computeOverflow(false);
@@ -444,17 +456,17 @@ namespace ui::navigation {
 
     NavigationTreeItem* NavigationTreeWidget::findFirstSelectableItem() const
     {
-        std::function<NavigationTreeItem*(const NavigationTreeWidget*)> visit =
+        std::function<NavigationTreeItem* (const NavigationTreeWidget*)> visit =
             [&](const NavigationTreeWidget* n) -> NavigationTreeItem* {
-                if (!n) return nullptr;
-                if (n->itemWidget() && n->itemWidget()->isSelectable()) {
-                    return qobject_cast<NavigationTreeItem*>(n->itemWidget());
-                }
-                for (const NavigationTreeWidget* child : n->children()) {
-                    if (auto* found = visit(child))
-                        return found;
-                }
-                return nullptr;
+            if (!n) return nullptr;
+            if (n->itemWidget() && n->itemWidget()->isSelectable()) {
+                return qobject_cast<NavigationTreeItem*>(n->itemWidget());
+            }
+            for (const NavigationTreeWidget* child : n->children()) {
+                if (auto* found = visit(child))
+                    return found;
+            }
+            return nullptr;
             };
 
         for (const NavigationTreeWidget* topNode : m_children) {
@@ -684,7 +696,7 @@ namespace ui::navigation {
 
             for (NavigationTreeWidget* child : node->m_children)
                 visit(child);
-        };
+            };
 
         visit(m_root);
     }
@@ -819,10 +831,21 @@ namespace ui::navigation {
         // overflow 按钮构造时已 setFixedSize(固定尺寸)，width() 反映其不可压缩宽度
         const int overflowBtnWidth = m_overflowButton ? m_overflowButton->width() : kTopBarItemHeight;
 
-        // 窗口一缩小即立即撤销粘性保护——不等到放不下才取消
+        // 窗口一缩小即立即撤销粘性保护——不等到放不下才取消，让自然排位靠前的项优先展示。
+        // 例外情况：如果当前被 pin 的项恰好是用户正在选中的项，此时不应剥夺其 pin 状态，
+        // 确保用户切走后，该项只要空间足够还能继续留在 TopBar 上。
         if (m_lastTopAvailableWidth > 0 && availableWidth < m_lastTopAvailableWidth) {
-            if (!m_pinnedCategoryKey.isEmpty())
-                m_pinnedCategoryKey.clear();
+            if (!m_pinnedCategoryKey.isEmpty()) {
+                bool shouldClear = true;
+                if (NavigationTreeWidget* pinnedNode = nodeFor(m_pinnedCategoryKey)) {
+                    if (isSelectedUnder(pinnedNode)) {
+                        shouldClear = false;
+                    }
+                }
+                if (shouldClear) {
+                    m_pinnedCategoryKey.clear();
+                }
+            }
         }
 
         // 收集顶级条目（O(n)，预建哈希替代 O(n×m) 双层线性搜索）
@@ -906,16 +929,25 @@ namespace ui::navigation {
             }
         }
         else {
-            // 放不下：按优先级分配宽度
+            // 放不下：按端点截断 (End-to-Left Truncation)
             // 按钮最高优先、不可压缩：条目只能使用扣除按钮宽度后的剩余空间
             int remainingWidth = availableWidth - overflowBtnWidth;
-            QVector<bool> isVisible(entries.size(), false);
 
-            // Pass 1: 提前预扣“核心粘性项”的空间（End-Pinning 保护机制）
-            // 确保当前选中项（selectedIdx）和历史粘性项（pinIdx）始终有空间
-            if (selectedIdx >= 0) {
-                remainingWidth -= entries[selectedIdx].width;
-                isVisible[selectedIdx] = true;
+            QVector<bool> isVisible(entries.size(), true);
+            QVector<int> parentHeaderIdx(entries.size(), -1);
+            QHash<int, QList<int>> headerChildren;
+
+            int currentHeaderIdx = -1;
+            for (int i = 0; i < entries.size(); ++i) {
+                if (entries[i].header) {
+                    currentHeaderIdx = i;
+                }
+                else if (entries[i].node) {
+                    parentHeaderIdx[i] = currentHeaderIdx;
+                    if (currentHeaderIdx != -1) {
+                        headerChildren[currentHeaderIdx].append(i);
+                    }
+                }
             }
 
             int pinIdx = -1;
@@ -927,40 +959,74 @@ namespace ui::navigation {
                     }
                 }
             }
-            if (pinIdx >= 0 && pinIdx != selectedIdx) {
-                remainingWidth -= entries[pinIdx].width;
-                isVisible[pinIdx] = true;
-            }
 
-            // 如果连必须常驻的项都放不下（极端情况），就让 remainingWidth 变负，后续不再分配
-            
-            // Pass 2: 贪心缝隙填充（Greedy Fill）
-            // 剔除掉超大项（不 break），继续利用剩余宽度吸纳后续较小的项，实现完美“捡漏”
-            for (int i = 0; i < entries.size(); ++i) {
-                // 如果已经被保留，直接跳过计算
+            // 从右向左截断
+            for (int i = entries.size() - 1; i >= 0 && totalItemsWidth > remainingWidth; --i) {
+                if (!isVisible[i]) continue; // 已经被连带隐藏了
+
                 if (i == selectedIdx || i == pinIdx) {
-                    continue; 
+                    continue; // 保护选中项和固定的分类
                 }
 
-                if (entries[i].width <= remainingWidth) {
-                    isVisible[i] = true;
-                    remainingWidth -= entries[i].width;
-                } else {
+                if (entries[i].node) {
                     isVisible[i] = false;
-                    // 注意：这里绝不能 break！
-                    // 遇到装不下的项（例如很宽的 dev），只剔除它，剩下的空间可能还够装后面的 notify 或 msg。
+                    totalItemsWidth -= entries[i].width;
+
+                    int pHeader = parentHeaderIdx[i];
+                    if (pHeader != -1 && isVisible[pHeader]) {
+                        bool anyChildVisible = false;
+                        for (int child : headerChildren[pHeader]) {
+                            if (isVisible[child]) {
+                                anyChildVisible = true;
+                                break;
+                            }
+                        }
+                        // 如果所有子项都被隐藏，且该 Header 不是受保护的选中项或固定项，则隐藏该 Header
+                        if (!anyChildVisible && pHeader != selectedIdx && pHeader != pinIdx) {
+                            isVisible[pHeader] = false;
+                            totalItemsWidth -= entries[pHeader].width;
+                        }
+                    }
+                }
+                else if (entries[i].header) {
+                    // 到达一个 Header（说明它是一个空 Header，或它的所有子项在此之前已被隐藏且因某种原因未连带隐藏）
+                    bool anyChildVisible = false;
+                    for (int child : headerChildren[i]) {
+                        if (isVisible[child]) {
+                            anyChildVisible = true;
+                            break;
+                        }
+                    }
+                    if (!anyChildVisible) {
+                        isVisible[i] = false;
+                        totalItemsWidth -= entries[i].width;
+                    }
                 }
             }
 
-            // 落地：更新各 widget 可见性，记录进 overflow 的条目
+            // 落地：更新各 widget 可见性，生成溢出列表
             for (int i = 0; i < entries.size(); ++i) {
                 if (entries[i].widget->isVisible() != isVisible[i]) {
                     layoutChanged = true;
                 }
                 entries[i].widget->setVisible(isVisible[i]);
-                if (!isVisible[i]) {
-                    if (entries[i].node)   m_overflowNodes.append(entries[i].node);
-                    if (entries[i].header) m_overflowHeaders.append(entries[i].header);
+
+                if (entries[i].node && !isVisible[i]) {
+                    m_overflowNodes.append(entries[i].node);
+                }
+
+                if (entries[i].header) {
+                    // 如果 Header 自身不可见，或者它的 ANY 子项被隐藏（进入了 Overflow），则 Header 需要进入 Overflow 保持上下文
+                    bool anyChildHidden = false;
+                    for (int child : headerChildren[i]) {
+                        if (!isVisible[child]) {
+                            anyChildHidden = true;
+                            break;
+                        }
+                    }
+                    if (!isVisible[i] || anyChildHidden) {
+                        m_overflowHeaders.append(entries[i].header);
+                    }
                 }
             }
 
@@ -973,7 +1039,6 @@ namespace ui::navigation {
                 const bool overflowSelected = (selectedIdx >= 0 && !isVisible[selectedIdx]);
                 m_overflowButton->setSelected(overflowSelected);
             }
-
         }
 
         if (layoutChanged) {
