@@ -1,4 +1,4 @@
-﻿# Build directories
+# Build directories
 build/
 build-*/
 bin/
@@ -23,6 +23,7 @@ Makefile
 
 # third-party libraries
 third_party/
+!third_party/FluentQt/
 
 # Generated source files
 *_autogen/
