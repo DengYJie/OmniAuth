@@ -33,12 +33,11 @@ void MainWindow::initWindow() {
     setWindowTitle(QStringLiteral("OmniAuth - 主系统"));
     resize(1080, 720);
     setMinimumSize(480, 480);
-    setBackdropEffect(fluent::windowing::BackdropEffect::Mica);
-    setCustomWindowChromeEnabled(true);
 
 }
 
 void MainWindow::buildNavigation() {
+    navigationView()->setDisplayMode(fluent::navigation::NavigationView::DisplayMode::Top);
     // 概览
     addSectionHeader(QStringLiteral("概览"));
     addSubInterface(QStringLiteral("home"), createDummyPage(QStringLiteral("控制台概览")), Typography::Icons::Home, QStringLiteral("首页"));

@@ -1,82 +1,129 @@
-#include "WindowBase.h"
+﻿#include "WindowBase.h"
 
-#include <FluentQt/StatusInfo.h>
 #include <QColor>
+#include <QDebug>
 #include <QHBoxLayout>
 #include <QMargins>
 #include <QPainter>
 #include <QShowEvent>
+#include <QStyle>
+#include <QStyleOption>
+#include <QVBoxLayout>
 
-WindowBase::WindowBase(QWidget* parent)
-    : QWidget(parent) {
-    setupUi();
-    onThemeUpdated();
+#include "TitleBar.h"
+#include <FluentQt/StatusInfo.h>
+
+#include <QWKCore/windowagentbase.h>
+#include <QWKWidgets/widgetwindowagent.h>
+
+namespace {
+    void registerBackdropMetaTypes()
+    {
+        static const bool registered = [] {
+            qRegisterMetaType<fluent::windowing::BackdropEffect>("fluent::windowing::BackdropEffect");
+            qRegisterMetaType<fluent::windowing::BackdropState>("fluent::windowing::BackdropState");
+            return true;
+            }();
+        Q_UNUSED(registered);
+    }
 }
 
-void WindowBase::setupUi() {
-    m_rootLayout = new QVBoxLayout(this);
+class WindowBasePrivate {
+    Q_DECLARE_PUBLIC(WindowBase)
+public:
+    explicit WindowBasePrivate(WindowBase* q) : q_ptr(q) {}
+
+    void setupUi();
+    void setupWindowKit();
+    bool applyPlatformWindowAttributes();
+    void applyBackdropEffect();
+
+    WindowBase* q_ptr;
+
+    QVBoxLayout* m_rootLayout = nullptr;
+    ui::window::TitleBar* m_titleBar = nullptr;
+    QWidget* m_contentHost = nullptr;
+    QWidget* m_contentWidget = nullptr;
+
+#if defined(Q_OS_WIN)
+    fluent::windowing::BackdropEffect m_backdropEffect = fluent::windowing::BackdropEffect::Mica;
+#else
+    fluent::windowing::BackdropEffect m_backdropEffect = fluent::windowing::BackdropEffect::Solid;
+#endif
+    bool m_customWindowChromeEnabled = true;
+
+    QWK::WidgetWindowAgent* m_windowAgent = nullptr;
+};
+
+void WindowBasePrivate::setupUi() {
+    Q_Q(WindowBase);
+
+    m_rootLayout = new QVBoxLayout(q);
     m_rootLayout->setContentsMargins(0, 0, 0, 0);
     m_rootLayout->setSpacing(0);
 
     // 1. 标题栏
-    m_titleBar = new ui::window::TitleBar(this);
+    m_titleBar = new ui::window::TitleBar(q);
     m_rootLayout->addWidget(m_titleBar);
 
     // 2. 内容区
-    m_contentHost = new QWidget(this);
+    m_contentHost = new QWidget(q);
     auto* contentLayout = new QVBoxLayout(m_contentHost);
     contentLayout->setContentsMargins(0, 0, 0, 0);
     contentLayout->setSpacing(0);
     m_rootLayout->addWidget(m_contentHost, 1);
 }
 
-void WindowBase::setupWindowKit() {
+void WindowBasePrivate::setupWindowKit() {
+    Q_Q(WindowBase);
+
     if (m_windowAgent) return;
 
-    m_windowAgent = new QWK::WidgetWindowAgent(this);
-    m_windowAgent->setup(this);
+    m_windowAgent = new QWK::WidgetWindowAgent(q);
+    m_windowAgent->setup(q);
 
     m_windowAgent->setTitleBar(m_titleBar);
-    
-    // 连接到 ui::window::TitleBar 自带的系统控制按钮
-    if (auto* minimizeBtn = m_titleBar->minimizeButton()) {
+
+    if (auto* minimizeBtn = m_titleBar->systemButton(ui::window::TitleBar::SystemButtonType::Minimize)) {
         m_windowAgent->setSystemButton(QWK::WindowAgentBase::Minimize, minimizeBtn);
     }
-    if (auto* maximizeBtn = m_titleBar->maximizeButton()) {
+    if (auto* maximizeBtn = m_titleBar->systemButton(ui::window::TitleBar::SystemButtonType::Maximize)) {
         m_windowAgent->setSystemButton(QWK::WindowAgentBase::Maximize, maximizeBtn);
     }
-    if (auto* closeBtn = m_titleBar->closeButton()) {
+    if (auto* closeBtn = m_titleBar->systemButton(ui::window::TitleBar::SystemButtonType::Close)) {
         m_windowAgent->setSystemButton(QWK::WindowAgentBase::Close, closeBtn);
     }
 
-    // 保证导航与自定义组件不被当作标题栏拖拽区域吞噬点击
-    if (auto* backBtn = m_titleBar->backButton()) m_windowAgent->setHitTestVisible(backBtn, true);
-    if (auto* paneBtn = m_titleBar->paneToggleButton()) m_windowAgent->setHitTestVisible(paneBtn, true);
-    if (auto* iconBtn = m_titleBar->iconButton()) m_windowAgent->setHitTestVisible(iconBtn, true);
+    const auto hitWidgets = m_titleBar->hitTestVisibleWidgets();
+    for (QWidget* w : hitWidgets) {
+        m_windowAgent->setHitTestVisible(w, true);
+    }
 
-    if (auto* rightHeaderWidget = m_titleBar->rightHeaderWidget()) m_windowAgent->setHitTestVisible(rightHeaderWidget, true);
-    if (auto* contentWidget = m_titleBar->contentWidget()) m_windowAgent->setHitTestVisible(contentWidget, true);
-    if (auto* leftHeaderWidget = m_titleBar->leftHeaderWidget()) m_windowAgent->setHitTestVisible(leftHeaderWidget, true);
-
-    applyPlatformWindowAttributes();
+    applyBackdropEffect();
 }
 
-void WindowBase::applyPlatformWindowAttributes() {
+bool WindowBasePrivate::applyPlatformWindowAttributes() {
+    Q_Q(WindowBase);
     if (!m_windowAgent)
-        return;
+        return false;
 
-    const bool isDark = (effectiveTheme() == FluentElement::Dark);
+    const bool isDark = (q->effectiveTheme() == fluent::FluentElement::Dark);
 
 #if defined(Q_OS_WIN)
     m_windowAgent->setWindowAttribute(QStringLiteral("dark-mode"), isDark);
-    m_windowAgent->setWindowAttribute(QStringLiteral("mica"),
-        m_backdropEffect == fluent::windowing::BackdropEffect::Mica);
-    m_windowAgent->setWindowAttribute(QStringLiteral("mica-alt"), false);
-    m_windowAgent->setWindowAttribute(QStringLiteral("acrylic-material"),
-        m_backdropEffect == fluent::windowing::BackdropEffect::Acrylic);
-    m_windowAgent->setWindowAttribute(QStringLiteral("dwm-blur"), false);
-    m_windowAgent->setWindowAttribute(QStringLiteral("dwm-border-color"),
-        QColor(QStringLiteral("#3367d6")));
+
+    switch (m_backdropEffect)
+    {
+    case fluent::windowing::BackdropEffect::Solid:
+        break;
+    case fluent::windowing::BackdropEffect::Mica:
+        return m_windowAgent->setWindowAttribute(QStringLiteral("mica"), true);
+    case fluent::windowing::BackdropEffect::Acrylic:
+        return m_windowAgent->setWindowAttribute(QStringLiteral("acrylic-material"), true);
+    default:
+        return false;
+    }
+    return true;
 #elif defined(Q_OS_MACOS)
     m_windowAgent->setWindowAttribute(QStringLiteral("no-system-buttons"), false);
     m_windowAgent->setWindowAttribute(QStringLiteral("blur-effect"),
@@ -85,78 +132,149 @@ void WindowBase::applyPlatformWindowAttributes() {
     m_windowAgent->setWindowAttribute(QStringLiteral("glass-corner-radius"), 24.0);
     m_windowAgent->setWindowAttribute(QStringLiteral("glass-tint-color"),
         QColor(255, 255, 255, 46));
+    return true;
 #endif
+    return false;
+}
+
+void WindowBasePrivate::applyBackdropEffect() {
+    Q_Q(WindowBase);
+
+    const bool isTranslucent = (m_backdropEffect != fluent::windowing::BackdropEffect::Solid);
+
+    fluent::windowing::BackdropState state;
+    state.requestedEffect = m_backdropEffect;
+    state.effectiveEffect = m_backdropEffect;
+    state.backend = isTranslucent ? fluent::windowing::BackdropBackend::DwmSystemBackdrop : fluent::windowing::BackdropBackend::Solid;
+    state.surfaceMode = isTranslucent ? fluent::windowing::BackdropSurfaceMode::CompositedTransparent : fluent::windowing::BackdropSurfaceMode::SolidOpaque;
+    state.platformApplied = false;
+
+    if (m_windowAgent && q->testAttribute(Qt::WA_WState_Polished)) {
+        bool applied = applyPlatformWindowAttributes();
+        if (!applied && isTranslucent) {
+            qDebug() << "[WindowBase] Failed to apply translucent backdrop. Falling back to Solid.";
+            m_backdropEffect = fluent::windowing::BackdropEffect::Solid;
+            state.effectiveEffect = fluent::windowing::BackdropEffect::Solid;
+            state.backend = fluent::windowing::BackdropBackend::Solid;
+            state.surfaceMode = fluent::windowing::BackdropSurfaceMode::SolidOpaque;
+        }
+    }
+
+    state.platformApplied = true;
+
+    q->setProperty("fluentWindowBackdropEffect", static_cast<int>(state.requestedEffect));
+    q->setProperty("fluentMicaBackdrop", state.surfaceMode == fluent::windowing::BackdropSurfaceMode::CompositedTransparent);
+    q->setProperty("fluentBackdropSurfaceMode", static_cast<int>(state.surfaceMode));
+    q->setProperty("fluentBackdropBackend", static_cast<int>(state.backend));
+    fluent::windowing::publishWindowBackdropState(q, state);
+    q->update();
+}
+
+
+WindowBase::WindowBase(QWidget* parent)
+    : QWidget(parent), d_ptr(std::make_unique<WindowBasePrivate>(this)) {
+    Q_D(WindowBase);
+
+    registerBackdropMetaTypes();
+
+    setAttribute(Qt::WA_DontCreateNativeAncestors);
+    setAttribute(Qt::WA_TranslucentBackground, true);
+
+    d->setupUi();
+    d->setupWindowKit();
+
+    onThemeUpdated();
+}
+
+WindowBase::~WindowBase() = default;
+
+QWidget* WindowBase::contentWidget() const {
+    Q_D(const WindowBase);
+    return d->m_contentWidget;
 }
 
 void WindowBase::setContentWidget(QWidget* widget) {
-    if (m_contentWidget) {
-        m_contentWidget->deleteLater();
+    Q_D(WindowBase);
+    if (d->m_contentWidget == widget) return;
+
+    if (d->m_contentWidget) {
+        d->m_contentWidget->deleteLater();
     }
-    m_contentWidget = widget;
-    if (m_contentWidget) {
-        m_contentHost->layout()->addWidget(m_contentWidget);
+
+    d->m_contentWidget = widget;
+
+    if (d->m_contentWidget) {
+        d->m_contentHost->layout()->addWidget(d->m_contentWidget);
     }
+
+    Q_EMIT contentWidgetChanged();
+}
+
+ui::window::TitleBar* WindowBase::titleBar() const {
+    Q_D(const WindowBase);
+    return d->m_titleBar;
+}
+
+QWidget* WindowBase::contentHost() const {
+    Q_D(const WindowBase);
+    return d->m_contentHost;
 }
 
 void WindowBase::setBackdropEffect(fluent::windowing::BackdropEffect effect) {
-    if (m_backdropEffect == effect) return;
-    m_backdropEffect = effect;
+    Q_D(WindowBase);
+    if (d->m_backdropEffect == effect) return;
 
-    if (m_windowAgent) {
-        applyPlatformWindowAttributes();
-    }
-    setAttribute(Qt::WA_TranslucentBackground, effect != fluent::windowing::BackdropEffect::Solid);
+    d->m_backdropEffect = effect;
+    d->applyBackdropEffect();
+
+    Q_EMIT backdropEffectChanged();
+}
+
+fluent::windowing::BackdropEffect WindowBase::backdropEffect() const {
+    Q_D(const WindowBase);
+    return d->m_backdropEffect;
 }
 
 void WindowBase::setCustomWindowChromeEnabled(bool enabled) {
-    if (m_customWindowChromeEnabled == enabled) return;
-    m_customWindowChromeEnabled = enabled;
+    Q_D(WindowBase);
+    if (d->m_customWindowChromeEnabled == enabled) return;
 
-    if (m_titleBar) {
-        m_titleBar->setVisible(enabled);
+    d->m_customWindowChromeEnabled = enabled;
+
+    if (d->m_titleBar) {
+        d->m_titleBar->setVisible(enabled);
     }
 
-    if (enabled && !m_windowAgent && testAttribute(Qt::WA_WState_Polished)) {
-        setupWindowKit();
-    }
+    Q_EMIT customWindowChromeEnabledChanged();
 }
 
-bool WindowBase::event(QEvent* event) {
-    if (event->type() == QEvent::Polish) {
-        if (m_customWindowChromeEnabled && !m_windowAgent) {
-            setupWindowKit();
-        }
-    }
-    return QWidget::event(event);
+bool WindowBase::customWindowChromeEnabled() const {
+    Q_D(const WindowBase);
+    return d->m_customWindowChromeEnabled;
 }
 
 void WindowBase::onThemeUpdated() {
-    if (m_windowAgent) {
-        applyPlatformWindowAttributes();
+    Q_D(WindowBase);
+    if (d->m_windowAgent) {
+        d->applyPlatformWindowAttributes();
     }
 
-    if (m_titleBar) {
-        m_titleBar->onThemeUpdated();
+    if (d->m_titleBar) {
+        d->m_titleBar->onThemeUpdated();
     }
 
     update();
 }
 
-void WindowBase::showEvent(QShowEvent* event) {
-    QWidget::showEvent(event);
-}
-
-void WindowBase::changeEvent(QEvent* event) {
-    QWidget::changeEvent(event);
-}
-
 void WindowBase::paintEvent(QPaintEvent* event) {
+    Q_D(WindowBase);
     QPainter painter(this);
-    // 启用系统背景时透明擦除，否则绘制主题底色
-    if (testAttribute(Qt::WA_TranslucentBackground)) {
-        painter.fillRect(rect(), Qt::transparent);
+
+    if (d->m_backdropEffect == fluent::windowing::BackdropEffect::Solid) {
+        painter.fillRect(rect(), themeColorsRef().bgLayer);
     }
     else {
-        painter.fillRect(rect(), themeColorsRef().bgLayer);
+        painter.setCompositionMode(QPainter::CompositionMode_Source);
+        painter.fillRect(rect(), Qt::transparent);
     }
 }

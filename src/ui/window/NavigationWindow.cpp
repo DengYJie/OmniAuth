@@ -5,6 +5,7 @@
 #include "ui/navigation/NavigationPanel.h"
 #include "ui/navigation/NavigationToolButton.h"
 #include "ui/navigation/NavigationWidget.h"
+#include "ui/window/TitleBar.h"
 
 NavigationWindow::NavigationWindow(QWidget* parent)
     : WindowBase(parent)

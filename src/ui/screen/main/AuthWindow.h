@@ -48,7 +48,4 @@ private:
     FaceScannerPage* m_faceScannerPage = nullptr;
     RegisterPage* m_registerPage = nullptr;
     RecoveryPage* m_recoveryPage = nullptr;
-
-    fluent::basicinput::Button* m_backButton = nullptr;
-    fluent::textfields::Label* m_titleLabel = nullptr;
 };

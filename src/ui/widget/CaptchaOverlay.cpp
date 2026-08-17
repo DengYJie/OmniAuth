@@ -50,11 +50,6 @@ CaptchaOverlay::CaptchaOverlay(QWidget* parent) : QWidget(parent) {
   m_fadeAnim->setDuration(200);
   m_fadeAnim->setEasingCurve(QEasingCurve::OutCubic);
 
-  // 遮罩透明度动画
-  auto* scrimAnim = new QPropertyAnimation(this, "scrimProgress", this);
-  scrimAnim->setDuration(200);
-  scrimAnim->setEasingCurve(QEasingCurve::OutCubic);
-
   // 卡片关闭后复位
   connect(m_fadeAnim, &QPropertyAnimation::finished, this, [this]() {
     if (m_closing) {

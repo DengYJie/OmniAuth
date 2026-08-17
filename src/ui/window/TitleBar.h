@@ -158,6 +158,12 @@ public:
     QWidget* contentWidget() const;
 
     /**
+     * @brief 获取所有需要响应鼠标点击事件的内部控件列表。
+     * 供 WindowBase 获取并向 QWindowKit 注册点击穿透，以避免这些控件被当作无边框拖拽区。
+     */
+    QList<QWidget*> hitTestVisibleWidgets() const;
+
+    /**
      * @brief 获取当前中间内容区域的对齐方式
      * @return 对齐方式枚举
      */
@@ -188,40 +194,22 @@ public:
     QWidget* leftHeaderWidget() const;
 
     /**
-     * @brief 获取窗口系统图标按钮：用于 QWindowKit 注册原生系统菜单与双击关闭
-     * @return 窗口图标按钮指针
+     * @brief 系统控制按钮类型
      */
-    fluent::basicinput::Button* iconButton() const { return m_iconButton; }
+    enum class SystemButtonType {
+        Minimize,
+        Maximize,
+        Close
+    };
+    Q_ENUM(SystemButtonType)
 
     /**
-     * @brief 获取最小化按钮：用于 QWindowKit 注册系统最小化动作
-     * @return 最小化按钮指针
+     * @brief 获取对应的系统控制按钮
+     * 用于 QWindowKit 注册系统最小化/最大化/关闭动作
+     * @param type 按钮类型
+     * @return 按钮控件指针
      */
-    fluent::basicinput::Button* minimizeButton() const { return m_minimizeButton; }
-
-    /**
-     * @brief 获取最大化/还原按钮：用于 QWindowKit 注册系统最大化/还原动作
-     * @return 最大化/还原按钮指针
-     */
-    fluent::basicinput::Button* maximizeButton() const { return m_maximizeButton; }
-
-    /**
-     * @brief 获取关闭按钮：用于 QWindowKit 注册系统关闭动作
-     * @return 关闭按钮指针
-     */
-    fluent::basicinput::Button* closeButton() const { return m_closeButton; }
-
-    /**
-     * @brief 获取后退导航按钮：用于 QWindowKit 声明免拖拽吞噬的客户区点击
-     * @return 后退按钮指针
-     */
-    fluent::basicinput::Button* backButton() const { return m_backButton; }
-
-    /**
-     * @brief 获取侧边栏折叠按钮：用于 QWindowKit 声明免拖拽吞噬的客户区点击
-     * @return 侧边栏折叠按钮指针
-     */
-    fluent::basicinput::Button* paneToggleButton() const { return m_paneToggleButton; }
+    QWidget* systemButton(SystemButtonType type) const;
 
     /**
      * @brief 主题刷新回调：同步前景色、圆角及非活动态透明度

@@ -1,9 +1,8 @@
-#include <FluentQt/FluentQt.h>
+﻿#include <FluentQt/FluentQt.h>
 
 #include "core/CryptoUtils.h"
 #include "data/di/AppContainer.h"
 #include "domain/model/FaceTypes.h"
-#include <FluentQt/FluentQt.h>
 
 #include "ui/screen/main/AuthWindow.h"
 #include "ui/screen/main/MainWindow.h"
@@ -24,7 +23,6 @@
 
 #include <thread>
 
-
 int main(int argc, char* argv[]) {
     fluent::prepareHighDpiApplication();
 
@@ -41,10 +39,12 @@ int main(int argc, char* argv[]) {
         qFatal("Failed to initialize libsodium!");
     }
 
-    AppContainer::init(false); 
+    AppContainer::init(false);
 
     MainWindow w;
     w.show();
+    AuthWindow authWindow;
+    authWindow.show();
 
     return QApplication::exec();
 }

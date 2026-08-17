@@ -73,7 +73,8 @@ TitleBar::TitleBar(QWidget* parent)
     m_backButton->setFluentStyle(fluent::basicinput::Button::Subtle);
     m_backButton->setFluentLayout(fluent::basicinput::Button::IconOnly);
     m_backButton->setIconGlyph(Typography::Icons::Back, IconSize);
-    m_backButton->setFocusPolicy(Qt::NoFocus);
+    m_backButton->setFocusPolicy(Qt::TabFocus);
+    m_backButton->setFocusVisual(true);
     m_backButton->hide();
     fluent::status_info::ToolTip::attach(m_backButton, tr("Back"));
     m_backButton->setAccessibleName(tr("Back"));
@@ -84,7 +85,8 @@ TitleBar::TitleBar(QWidget* parent)
     m_paneToggleButton->setFluentStyle(fluent::basicinput::Button::Subtle);
     m_paneToggleButton->setFluentLayout(fluent::basicinput::Button::IconOnly);
     m_paneToggleButton->setIconGlyph(Typography::Icons::GlobalNav, IconSize);
-    m_paneToggleButton->setFocusPolicy(Qt::NoFocus);
+    m_paneToggleButton->setFocusPolicy(Qt::TabFocus);
+    m_paneToggleButton->setFocusVisual(true);
     m_paneToggleButton->hide();
     fluent::status_info::ToolTip::attach(m_paneToggleButton, tr("Menu"));
     m_paneToggleButton->setAccessibleName(tr("Menu"));
@@ -517,6 +519,26 @@ void TitleBar::syncActivationOpacity() {
     m_minimizeButton->setContentOpacity(opacity);
     m_maximizeButton->setContentOpacity(opacity);
     m_closeButton->setContentOpacity(opacity);
+}
+
+QList<QWidget*> TitleBar::hitTestVisibleWidgets() const {
+    QList<QWidget*> widgets;
+    if (m_backButton) widgets.append(m_backButton);
+    if (m_paneToggleButton) widgets.append(m_paneToggleButton);
+    if (m_iconButton) widgets.append(m_iconButton);
+    if (m_leftHeaderWidget) widgets.append(m_leftHeaderWidget);
+    if (m_contentWidget) widgets.append(m_contentWidget);
+    if (m_rightHeaderWidget) widgets.append(m_rightHeaderWidget);
+    return widgets;
+}
+
+QWidget* TitleBar::systemButton(SystemButtonType type) const {
+    switch (type) {
+        case SystemButtonType::Minimize: return m_minimizeButton;
+        case SystemButtonType::Maximize: return m_maximizeButton;
+        case SystemButtonType::Close: return m_closeButton;
+    }
+    return nullptr;
 }
 
 } // namespace ui::window
