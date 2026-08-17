@@ -1,4 +1,4 @@
-﻿#include "TitleBar.h"
+#include "TitleBar.h"
 
 #include "ui/animation/AnimatedBackVisualSource.h"
 #include "ui/animation/AnimatedGlobalNavVisualSource.h"
@@ -208,6 +208,7 @@ namespace ui::window {
 
     void TitleBar::setIcon(const QIcon& icon) {
         m_icon = icon;
+        const bool isVisible = !m_icon.isNull();
         if (m_icon.isNull()) {
             m_iconButton->hide();
         }
@@ -218,6 +219,7 @@ namespace ui::window {
         }
         updateLayout();
         emit iconChanged(icon);
+        emit hitTestWidgetChanged(m_iconButton, isVisible);
     }
 
     QIcon TitleBar::icon() const {
@@ -230,6 +232,7 @@ namespace ui::window {
         m_backButton->setVisible(visible);
         updateLayout();
         emit backButtonVisibleChanged(visible);
+        emit hitTestWidgetChanged(m_backButton, visible);
     }
 
     bool TitleBar::isBackButtonVisible() const {
@@ -253,6 +256,7 @@ namespace ui::window {
         m_paneToggleButton->setVisible(visible);
         updateLayout();
         emit paneToggleButtonVisibleChanged(visible);
+        emit hitTestWidgetChanged(m_paneToggleButton, visible);
     }
 
     bool TitleBar::isPaneToggleButtonVisible() const {
@@ -272,12 +276,16 @@ namespace ui::window {
 
     void TitleBar::setContentWidget(QWidget* contentWidget, ContentAlignment alignment) {
         if (m_contentWidget == contentWidget && m_contentAlignment == alignment) return;
-        if (m_contentWidget && m_contentWidget != contentWidget) m_contentWidget->setParent(nullptr);
+        if (m_contentWidget && m_contentWidget != contentWidget) {
+            emit hitTestWidgetChanged(m_contentWidget, false);
+            m_contentWidget->setParent(nullptr);
+        }
         m_contentWidget = contentWidget;
         m_contentAlignment = alignment;
         if (m_contentWidget) {
             m_contentWidget->setParent(this);
             m_contentWidget->show();
+            emit hitTestWidgetChanged(m_contentWidget, true);
         }
         updateHeight();
         updateLayout();
@@ -293,11 +301,15 @@ namespace ui::window {
 
     void TitleBar::setRightHeaderWidget(QWidget* rightHeaderWidget) {
         if (m_rightHeaderWidget == rightHeaderWidget) return;
-        if (m_rightHeaderWidget) m_rightHeaderWidget->setParent(nullptr);
+        if (m_rightHeaderWidget && m_rightHeaderWidget != rightHeaderWidget) {
+            emit hitTestWidgetChanged(m_rightHeaderWidget, false);
+            m_rightHeaderWidget->setParent(nullptr);
+        }
         m_rightHeaderWidget = rightHeaderWidget;
         if (m_rightHeaderWidget) {
             m_rightHeaderWidget->setParent(this);
             m_rightHeaderWidget->show();
+            emit hitTestWidgetChanged(m_rightHeaderWidget, true);
         }
         updateHeight();
         updateLayout();
@@ -309,11 +321,15 @@ namespace ui::window {
 
     void TitleBar::setLeftHeaderWidget(QWidget* leftHeaderWidget) {
         if (m_leftHeaderWidget == leftHeaderWidget) return;
-        if (m_leftHeaderWidget) m_leftHeaderWidget->setParent(nullptr);
+        if (m_leftHeaderWidget && m_leftHeaderWidget != leftHeaderWidget) {
+            emit hitTestWidgetChanged(m_leftHeaderWidget, false);
+            m_leftHeaderWidget->setParent(nullptr);
+        }
         m_leftHeaderWidget = leftHeaderWidget;
         if (m_leftHeaderWidget) {
             m_leftHeaderWidget->setParent(this);
             m_leftHeaderWidget->show();
+            emit hitTestWidgetChanged(m_leftHeaderWidget, true);
         }
         updateLayout();
     }

@@ -1,4 +1,4 @@
-﻿#include "WindowBase.h"
+#include "WindowBase.h"
 
 #include <QColor>
 #include <QDebug>
@@ -98,6 +98,12 @@ void WindowBasePrivate::setupWindowKit() {
     for (QWidget* w : hitWidgets) {
         m_windowAgent->setHitTestVisible(w, true);
     }
+
+    QObject::connect(m_titleBar, &ui::window::TitleBar::hitTestWidgetChanged, q, [this](QWidget* w, bool visible) {
+        if (m_windowAgent && w) {
+            m_windowAgent->setHitTestVisible(w, visible);
+        }
+    });
 
     applyBackdropEffect();
 }
@@ -264,6 +270,13 @@ void WindowBase::onThemeUpdated() {
     }
 
     update();
+}
+
+void WindowBase::setHitTestVisible(QWidget* widget, bool visible) {
+    Q_D(WindowBase);
+    if (d->m_windowAgent && widget) {
+        d->m_windowAgent->setHitTestVisible(widget, visible);
+    }
 }
 
 void WindowBase::paintEvent(QPaintEvent* event) {

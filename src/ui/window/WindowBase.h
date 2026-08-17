@@ -77,6 +77,13 @@ public:
     bool customWindowChromeEnabled() const;
 
     /**
+     * @brief 设置指定子控件在自绘标题栏区域内的点击穿透性 (Hit-Test)。
+     * @param widget 目标控件指针
+     * @param visible 是否允许响应鼠标交互（若为 false 则该区域被作为标题栏拖拽区）
+     */
+    void setHitTestVisible(QWidget* widget, bool visible = true);
+
+    /**
      * @brief 主题更新回调。在系统或应用切换深浅色模式时自动触发。
      */
     void onThemeUpdated() override;

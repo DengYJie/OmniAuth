@@ -269,6 +269,13 @@ signals:
      */
     void heightOptionChanged(HeightOption option);
 
+    /**
+     * @brief 可点击交互控件变更信号（供 WindowBase / QWindowKit 动态同步穿透区域）
+     * @param widget 发生变化的控件指针
+     * @param visible 是否需要接收鼠标交互（true 为交互控件，false 为窗口拖拽区）
+     */
+    void hitTestWidgetChanged(QWidget* widget, bool visible);
+
 protected:
     // 重写 showEvent 以确保在已加入窗口树时正确安装事件过滤器
     void showEvent(QShowEvent* event) override;
