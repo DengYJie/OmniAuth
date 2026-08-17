@@ -248,7 +248,13 @@ namespace ui::navigation {
         void showEvent(QShowEvent* event) override;
         void resizeEvent(QResizeEvent* event) override;
 
-        void onThemeUpdated() override { update(); }
+        void onThemeUpdated() override;
+
+    public:
+        /**
+         * @brief 确保内置 ScrollView 及其视口保持透明底色，避免覆盖面板材质
+         */
+        void applyTransparentScrollView();
 
     private:
 

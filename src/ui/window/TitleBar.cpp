@@ -1,4 +1,4 @@
-#include "TitleBar.h"
+﻿#include "TitleBar.h"
 
 #include "ui/animation/AnimatedBackVisualSource.h"
 #include "ui/animation/AnimatedGlobalNavVisualSource.h"
@@ -76,8 +76,6 @@ namespace ui::window {
         m_backButton->setObjectName(QStringLiteral("fluentWindowBackButton"));
         m_backButton->setFluentStyle(fluent::basicinput::Button::Subtle);
         m_backButton->setFluentLayout(fluent::basicinput::Button::IconOnly);
-        // 移除原生静态图标，改用矢量形变图标
-        // m_backButton->setIconGlyph(Typography::Icons::Back, IconSize);
         m_backButton->setFocusPolicy(Qt::TabFocus);
         m_backButton->setFocusVisual(true);
         m_backButton->hide();
@@ -85,7 +83,6 @@ namespace ui::window {
         m_backButton->setAccessibleName(tr("Back"));
         connect(m_backButton, &fluent::basicinput::Button::clicked, this, &TitleBar::backButtonClicked);
 
-        // 挂载 AnimatedIcon（由 AnimatedIcon 内部自管理父级按钮事件监听）
         m_animatedBackIcon = new ui::animation::AnimatedIcon(m_backButton);
         m_animatedBackIcon->setSource(std::make_shared<ui::animation::AnimatedBackVisualSource>());
 

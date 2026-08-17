@@ -38,6 +38,44 @@
 
 namespace ui::navigation {
 
+    namespace {
+
+        class NavigationScrollView final : public fluent::scrolling::ScrollView {
+        public:
+            explicit NavigationScrollView(QWidget* parent = nullptr)
+                : fluent::scrolling::ScrollView(parent)
+            {
+                applyTransparentSurface();
+            }
+
+        protected:
+            void onThemeUpdated() override
+            {
+                fluent::scrolling::ScrollView::onThemeUpdated();
+                applyTransparentSurface();
+            }
+
+        private:
+            void applyTransparentSurface()
+            {
+                setAutoFillBackground(false);
+                QWidget* area = viewport();
+                if (!area)
+                    return;
+
+                area->setAutoFillBackground(false);
+                area->setAttribute(Qt::WA_TranslucentBackground, false);
+                area->setAttribute(Qt::WA_OpaquePaintEvent, false);
+                QPalette palette = area->palette();
+                palette.setColor(QPalette::Window, Qt::transparent);
+                palette.setColor(QPalette::Base, Qt::transparent);
+                area->setPalette(palette);
+                area->update();
+            }
+        };
+
+    } // namespace
+
     NavigationTreeWidget::NavigationTreeWidget(QWidget* parent)
         : NavigationTreeWidgetBase(this, parent)
     {
@@ -61,13 +99,12 @@ namespace ui::navigation {
         scrollContainer->setObjectName("NavigationScrollContainer");
         scrollContainer->setStyleSheet("background: transparent;");
 
-        m_scrollView = new fluent::scrolling::ScrollView(this);
+        m_scrollView = new NavigationScrollView(this);
         m_scrollView->setWidgetResizable(true);
         m_scrollView->setContentWidget(scrollContainer);
         m_scrollView->setFrameShape(QFrame::NoFrame);
         m_scrollView->setVerticalScrollBarVisibility(fluent::scrolling::ScrollView::ScrollBarVisibility::Visible);
-        m_scrollView->viewport()->setStyleSheet("background: transparent;");
-        m_scrollView->setStyleSheet("background: transparent; border: none;");
+        applyTransparentScrollView();
 
         m_layout->addWidget(m_scrollView, 1);
         m_layout->addLayout(m_footerLayout);
@@ -1143,6 +1180,27 @@ namespace ui::navigation {
                 result.append(*it);
         }
         return result;
+    }
+
+    void NavigationTreeWidget::onThemeUpdated() {
+        applyTransparentScrollView();
+        update();
+    }
+
+    void NavigationTreeWidget::applyTransparentScrollView() {
+        if (!m_scrollView) return;
+        m_scrollView->setAutoFillBackground(false);
+        QWidget* area = m_scrollView->viewport();
+        if (!area) return;
+
+        area->setAutoFillBackground(false);
+        area->setAttribute(Qt::WA_TranslucentBackground, false);
+        area->setAttribute(Qt::WA_OpaquePaintEvent, false);
+        QPalette palette = area->palette();
+        palette.setColor(QPalette::Window, Qt::transparent);
+        palette.setColor(QPalette::Base, Qt::transparent);
+        area->setPalette(palette);
+        area->update();
     }
 
 } // namespace ui::navigation
