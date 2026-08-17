@@ -26,24 +26,32 @@ void NavigationWindow::initNavigation() {
     m_panel->setPaneToggleButtonVisible(false);
     m_panel->setBackButtonVisible(false);
 
-    // 同步 DisplayMode 变化至 Panel 的排列方向、NavigationView 的 Pane 展开状态及 TitleBar
+    // 同步 DisplayMode 变化至 Panel 的排列方向、NavigationView 的 Pane 展开状态、转场效果及 TitleBar
     auto syncDisplayMode = [this](fluent::navigation::NavigationView::DisplayMode mode) {
         using DisplayMode = fluent::navigation::NavigationView::DisplayMode;
+        using StackContentHost = fluent::navigation::StackContentHost;
+        const bool top = (mode == DisplayMode::Top);
         if (m_panel) {
-            m_panel->setOrientation(mode == DisplayMode::Top
-                ? Qt::Horizontal
-                : Qt::Vertical);
+            m_panel->setOrientation(top ? Qt::Horizontal : Qt::Vertical);
         }
         if (m_navigationView) {
-            m_navigationView->setPaneOpen(mode == DisplayMode::Left || mode == DisplayMode::Top);
+            m_navigationView->setPaneOpen(mode == DisplayMode::Left || top);
+            if (auto* host = m_navigationView->contentHost()) {
+                // Top 顶栏模式：导航项横向分布，页面切换走水平滑动（SlideNavigationTransitionInfo）；
+                // Left 侧边栏模式：页面切换走 Entrance（SlideFromBottom 垂直微浮淡入），避免内容与侧边栏横向碰撞
+                host->setTransitionEffect(
+                    top ? StackContentHost::TransitionEffect::SlideFromLeft
+                        : StackContentHost::TransitionEffect::SlideFromBottom);
+            }
         }
         if (titleBar()) {
-            titleBar()->setPaneToggleButtonVisible(mode != DisplayMode::Top);
+            titleBar()->setPaneToggleButtonVisible(!top);
         }
-        };
+    };
 
     connect(m_navigationView, &fluent::navigation::NavigationView::effectiveDisplayModeChanged,
         this, syncDisplayMode);
+    syncDisplayMode(m_navigationView->effectiveDisplayMode());
 
     // 同步 Pane 展开/收起状态至 Panel 的紧凑（折叠）模式
     connect(m_navigationView, &fluent::navigation::NavigationView::paneOpenChanged,
