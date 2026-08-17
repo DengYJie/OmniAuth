@@ -229,6 +229,20 @@ public:
     QWidget* systemButton(SystemButtonType type) const;
 
     /**
+     * @brief 设置系统控制按钮的可见性并刷新布局
+     * @param type 按钮类型
+     * @param visible 是否可见
+     */
+    void setSystemButtonVisible(SystemButtonType type, bool visible);
+
+    /**
+     * @brief 查询系统控制按钮的可见性
+     * @param type 按钮类型
+     * @return 是否可见
+     */
+    bool isSystemButtonVisible(SystemButtonType type) const;
+
+    /**
      * @brief 主题刷新回调：同步前景色、圆角及非活动态透明度
      */
     void onThemeUpdated() override;

@@ -5,6 +5,7 @@
 #include "ui/animation/AnimatedIcon.h"
 #include <FluentQt/Design.h>
 #include <FluentQt/StatusInfo.h>
+#include <FluentQt/TextFields.h>
 #include <QAccessible>
 #include <QApplication>
 #include <QFontMetrics>
@@ -46,27 +47,42 @@ namespace ui::window {
         constexpr qreal InactiveOpacity = 0.5;
     }
 
-    // 文本溢出自动末尾截断的标签控件：避免挤压右侧窗口控制按钮
-    class ElidedLabel : public QLabel {
+    // 文本溢出自动末尾截断的标签控件：继承自 Fluent 标准 Label
+    class ElidedLabel : public fluent::textfields::Label {
     public:
-        explicit ElidedLabel(QWidget* parent = nullptr) : QLabel(parent) {}
-        void setText(const QString& text) {
-            m_text = text;
-            QLabel::setText(text);
-            update();
+        explicit ElidedLabel(QWidget* parent = nullptr)
+            : fluent::textfields::Label(parent)
+        {
+            setTextElideMode(Qt::ElideRight);
+            setFluentTypography(Typography::FontRole::Caption);
         }
+
+        void setContentOpacity(qreal opacity) {
+            if (qFuzzyCompare(m_opacity, opacity)) return;
+            m_opacity = opacity;
+            updateOpacityColor();
+        }
+
+        qreal contentOpacity() const {
+            return m_opacity;
+        }
+
     protected:
-        // 依据可用宽度通过 QFontMetrics 计算截断文本绘制
-        void paintEvent(QPaintEvent* event) override {
-            QPainter painter(this);
-            painter.setPen(palette().color(QPalette::WindowText));
-            QFontMetrics fm(font());
-            QString elidedText = fm.elidedText(m_text, Qt::ElideRight, width());
-            QRect textRect = rect();
-            painter.drawText(textRect, alignment() | Qt::AlignVCenter, elidedText);
+        void onThemeUpdated() override {
+            fluent::textfields::Label::onThemeUpdated();
+            updateOpacityColor();
         }
+
     private:
-        QString m_text;
+        void updateOpacityColor() {
+            QColor textColor = themeColorsRef().textPrimary;
+            textColor.setAlphaF(textColor.alphaF() * m_opacity);
+            QPalette p = palette();
+            p.setColor(QPalette::WindowText, textColor);
+            setPalette(p);
+        }
+
+        qreal m_opacity = 1.0;
     };
 
     TitleBar::TitleBar(QWidget* parent)
@@ -125,6 +141,10 @@ namespace ui::window {
         m_minimizeButton = createCaptionButton(QStringLiteral("fluentWindowMinimizeButton"), Typography::Icons::ChromeMinimize, tr("Minimize"));
         m_maximizeButton = createCaptionButton(QStringLiteral("fluentWindowMaximizeButton"), Typography::Icons::ChromeMaximize, tr("Maximize"));
         m_closeButton = createCaptionButton(QStringLiteral("fluentWindowCloseButton"), Typography::Icons::ChromeClose, tr("Close"), true);
+
+        m_minimizeButton->installEventFilter(this);
+        m_maximizeButton->installEventFilter(this);
+        m_closeButton->installEventFilter(this);
 
         connect(m_minimizeButton, &fluent::basicinput::Button::clicked, window(), &QWidget::showMinimized);
         connect(m_maximizeButton, &fluent::basicinput::Button::clicked, window(), [this]() {
@@ -306,6 +326,7 @@ namespace ui::window {
         m_rightHeaderWidget = rightHeaderWidget;
         if (m_rightHeaderWidget) {
             m_rightHeaderWidget->setParent(this);
+            m_rightHeaderWidget->installEventFilter(this);
             m_rightHeaderWidget->show();
             emit hitTestWidgetChanged(m_rightHeaderWidget, true);
         }
@@ -326,6 +347,7 @@ namespace ui::window {
         m_leftHeaderWidget = leftHeaderWidget;
         if (m_leftHeaderWidget) {
             m_leftHeaderWidget->setParent(this);
+            m_leftHeaderWidget->installEventFilter(this);
             m_leftHeaderWidget->show();
             emit hitTestWidgetChanged(m_leftHeaderWidget, true);
         }
@@ -367,6 +389,13 @@ namespace ui::window {
     bool TitleBar::eventFilter(QObject* watched, QEvent* event) {
         if (watched == window() && event->type() == QEvent::WindowStateChange) {
             syncWindowState();
+        }
+        else if (watched == m_minimizeButton || watched == m_maximizeButton || watched == m_closeButton
+                 || watched == m_leftHeaderWidget || watched == m_rightHeaderWidget) {
+            if (event->type() == QEvent::Show || event->type() == QEvent::Hide
+                || event->type() == QEvent::ShowToParent || event->type() == QEvent::HideToParent) {
+                updateLayout();
+            }
         }
         return fluent::windowing::TitleBar::eventFilter(watched, event);
     }
@@ -425,7 +454,7 @@ namespace ui::window {
             currentX += AppTitleBarButtonWidth;
         }
 
-        if (m_leftHeaderWidget) {
+        if (m_leftHeaderWidget && m_leftHeaderWidget->isVisibleTo(this)) {
             m_leftHeaderWidget->setGeometry(currentX, (h - m_leftHeaderWidget->height()) / 2, m_leftHeaderWidget->width(), m_leftHeaderWidget->height());
             currentX += m_leftHeaderWidget->width();
         }
@@ -439,16 +468,22 @@ namespace ui::window {
 
         int rightOffset = w;
 
-        rightOffset -= CaptionButtonWidth;
-        m_closeButton->setGeometry(rightOffset, 0, CaptionButtonWidth, h);
-        rightOffset -= CaptionButtonWidth;
-        m_maximizeButton->setGeometry(rightOffset, 0, CaptionButtonWidth, h);
-        rightOffset -= CaptionButtonWidth;
-        m_minimizeButton->setGeometry(rightOffset, 0, CaptionButtonWidth, h);
+        if (m_closeButton && m_closeButton->isVisibleTo(this)) {
+            rightOffset -= CaptionButtonWidth;
+            m_closeButton->setGeometry(rightOffset, 0, CaptionButtonWidth, h);
+        }
+        if (m_maximizeButton && m_maximizeButton->isVisibleTo(this)) {
+            rightOffset -= CaptionButtonWidth;
+            m_maximizeButton->setGeometry(rightOffset, 0, CaptionButtonWidth, h);
+        }
+        if (m_minimizeButton && m_minimizeButton->isVisibleTo(this)) {
+            rightOffset -= CaptionButtonWidth;
+            m_minimizeButton->setGeometry(rightOffset, 0, CaptionButtonWidth, h);
+        }
 
         rightOffset -= m_minDragRegionWidth;
 
-        if (m_rightHeaderWidget) {
+        if (m_rightHeaderWidget && m_rightHeaderWidget->isVisibleTo(this)) {
             rightOffset -= m_rightHeaderWidget->width();
             m_rightHeaderWidget->setGeometry(rightOffset, (h - m_rightHeaderWidget->height()) / 2, m_rightHeaderWidget->width(), m_rightHeaderWidget->height());
             rightOffset -= ElementSpacing;
@@ -518,32 +553,47 @@ namespace ui::window {
 
             if (!m_title.isEmpty()) {
                 int titleWidth = m_titleLabel->fontMetrics().horizontalAdvance(m_titleLabel->text()) + 4;
-                int availWidth = qMax(0, titleMaxRight - currentX);
-                m_titleLabel->setGeometry(currentX, 0, qMin(titleWidth, availWidth), h);
-                currentX += qMin(titleWidth, availWidth) + TitleBarTitleMarginRight;
+                int maxAvailableTitleWidth = titleMaxRight - currentX;
+                if (titleWidth > maxAvailableTitleWidth) {
+                    titleWidth = qMax(0, maxAvailableTitleWidth);
+                }
+                m_titleLabel->setGeometry(currentX, 0, titleWidth, h);
+                currentX += titleWidth + TitleBarTitleMarginRight;
             }
 
             if (!m_subtitle.isEmpty()) {
                 int subtitleWidth = m_subtitleLabel->fontMetrics().horizontalAdvance(m_subtitleLabel->text()) + 4;
-                int availWidth = qMax(0, titleMaxRight - currentX);
-                m_subtitleLabel->setGeometry(currentX, 0, qMin(subtitleWidth, availWidth), h);
-                currentX += qMin(subtitleWidth, availWidth) + TitleBarSubtitleMarginRight;
+                int maxAvailableSubtitleWidth = titleMaxRight - currentX;
+                if (subtitleWidth > maxAvailableSubtitleWidth) {
+                    subtitleWidth = qMax(0, maxAvailableSubtitleWidth);
+                }
+                m_subtitleLabel->setGeometry(currentX, 0, subtitleWidth, h);
+                currentX += subtitleWidth + TitleBarSubtitleMarginRight;
             }
         }
 
         if (m_contentWidget && m_contentAlignment == ContentAlignment::Stretch) {
-            int availWidth = qMax(0, titleMaxRight - currentX);
-            m_contentWidget->setGeometry(currentX, (h - m_contentWidget->height()) / 2, availWidth, m_contentWidget->height());
+            int stretchLeft = currentX;
+            int stretchRight = rightOffset;
+            int stretchWidth = qMax(0, stretchRight - stretchLeft);
+            int sh = m_contentWidget->height();
+            m_contentWidget->setGeometry(stretchLeft, (h - sh) / 2, stretchWidth, sh);
         }
 
         setSystemReservedTrailingWidth(3 * CaptionButtonWidth);
     }
 
     void TitleBar::syncActivationOpacity() {
-        qreal opacity = isWindowActive() ? 1.0 : InactiveOpacity;
+        if (!window()) return;
+        const bool active = window()->isActiveWindow();
+        const qreal opacity = active ? 1.0 : InactiveOpacity;
+
         m_backButton->setContentOpacity(opacity);
         m_paneToggleButton->setContentOpacity(opacity);
         m_iconButton->setContentOpacity(opacity);
+        m_titleLabel->setContentOpacity(opacity);
+        m_subtitleLabel->setContentOpacity(opacity);
+
         m_minimizeButton->setContentOpacity(opacity);
         m_maximizeButton->setContentOpacity(opacity);
         m_closeButton->setContentOpacity(opacity);
@@ -567,6 +617,23 @@ namespace ui::window {
         case SystemButtonType::Close: return m_closeButton;
         }
         return nullptr;
+    }
+
+    void TitleBar::setSystemButtonVisible(SystemButtonType type, bool visible) {
+        if (auto* btn = systemButton(type)) {
+            if (btn->isVisibleTo(this) != visible) {
+                btn->setVisible(visible);
+                updateLayout();
+                emit hitTestWidgetChanged(btn, visible);
+            }
+        }
+    }
+
+    bool TitleBar::isSystemButtonVisible(SystemButtonType type) const {
+        if (auto* btn = systemButton(type)) {
+            return !btn->isHidden();
+        }
+        return false;
     }
 
 } // namespace ui::window
