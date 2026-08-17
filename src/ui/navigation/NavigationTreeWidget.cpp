@@ -21,11 +21,11 @@
 #include <QVariantAnimation>
 #include <QVBoxLayout>
 
+#include <QApplication>
+
 #include <FluentQt/Design.h>
 #include <FluentQt/DialogsFlyouts.h>
 #include <FluentQt/Scrolling.h>
-
-#include <components/foundation/overlay/OverlayGeometry.h>
 
 #include "ui/navigation/NavigationFlyout.h"
 #include "ui/navigation/NavigationIndicator.h"
@@ -78,10 +78,8 @@ namespace ui::navigation {
         m_overflowButton->setAnimatedMove(true);
         m_overflowButton->hide();
         connect(m_overflowButton, &NavigationToolButton::clicked, this, [this]() {
-            qDebug() << "[NavigationTree::onOverflowButtonClicked] Clicked 'More' button, emitting overflowMenuRequested with"
-                << overflowEntries().size() << "entries";
             emit overflowMenuRequested(m_overflowButton, overflowEntries());
-            });
+        });
         m_mainLayout->insertWidget(m_mainLayout->count() - 1, m_overflowButton);
     }
 
@@ -497,7 +495,11 @@ namespace ui::navigation {
             return;
         if (node->m_itemWidget)
             out.append(node->m_itemWidget);
-        if (node->isCategory() && node->m_isExpanded) {
+
+        // 根节点的子节点（即一级菜单）永远是展开的；其他分类节点需要判断 m_isExpanded
+        bool shouldTraverse = (node == m_root) || (node->isCategory() && node->m_isExpanded);
+
+        if (shouldTraverse) {
             for (NavigationTreeWidget* child : node->m_children)
                 collectVisible(child, out);
         }
@@ -505,22 +507,68 @@ namespace ui::navigation {
 
     void NavigationTreeWidget::moveFocusBy(int delta)
     {
-        const QVector<NavigationWidget*> items = visibleItems();
-        if (items.isEmpty())
+        if (m_root && m_root != this) {
+            m_root->moveFocusBy(delta);
             return;
+        }
+
+        const QVector<NavigationWidget*> items = visibleItems();
+        if (items.isEmpty()) {
+            return;
+        }
+
+        QWidget* focused = qApp->focusWidget();
         int idx = -1;
         for (int i = 0; i < items.size(); ++i) {
-            if (auto* item = qobject_cast<NavigationTreeItem*>(items.at(i))) {
-                if (item->routeKey() == m_currentRouteKey) { idx = i; break; }
+            if (items.at(i) == focused || items.at(i)->isAncestorOf(focused)) {
+                idx = i;
+                break;
             }
         }
-        if (idx < 0)
-            idx = (delta > 0) ? -1 : items.size();
-        const int next = (idx + delta + items.size()) % items.size();
-        NavigationWidget* target = items.at(next);
-        target->setFocus(Qt::ShortcutFocusReason);
-        if (auto* item = qobject_cast<NavigationTreeItem*>(target))
-            setCurrentItem(item->routeKey());
+
+        if (idx < 0) {
+            for (int i = 0; i < items.size(); ++i) {
+                if (auto* item = qobject_cast<NavigationTreeItem*>(items.at(i))) {
+                    if (item->routeKey() == m_currentRouteKey) { idx = i; break; }
+                }
+            }
+            if (idx < 0) {
+                idx = (delta > 0) ? -1 : items.size();
+            }
+        }
+
+        int next = idx;
+        for (int k = 0; k < items.size(); ++k) {
+            next = (next + delta + items.size()) % items.size();
+            NavigationWidget* target = items.at(next);
+
+            if (target->focusPolicy() == Qt::NoFocus || !target->isVisibleTo(this) || !target->isEnabled()) {
+                continue;
+            }
+
+            target->setFocus(Qt::ShortcutFocusReason);
+
+            if (m_selectionFollowsFocus) {
+                if (auto* item = qobject_cast<NavigationTreeItem*>(target)) {
+                    if (item->isSelectable() && !item->isCategory()) {
+                        setCurrentItem(item->routeKey());
+                    }
+                }
+                else if (auto* btn = qobject_cast<NavigationToolButton*>(target)) {
+                    if (btn->isSelectable()) {
+                        btn->click();
+                    }
+                }
+            }
+            break;
+        }
+    }
+
+    void NavigationTreeWidget::setSelectionFollowsFocus(bool follows)
+    {
+        if (m_selectionFollowsFocus == follows)
+            return;
+        m_selectionFollowsFocus = follows;
     }
 
 
@@ -604,7 +652,8 @@ namespace ui::navigation {
                 if (orientation == Orientation::Vertical) {
                     node->m_itemWidget->setVisible(true);
                     sp.setHorizontalPolicy(QSizePolicy::Preferred);
-                } else {
+                }
+                else {
                     sp.setHorizontalPolicy(QSizePolicy::Fixed);
                 }
                 node->m_itemWidget->setSizePolicy(sp);
@@ -628,7 +677,7 @@ namespace ui::navigation {
             header->setOrientation(orientation);
             header->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
             header->setVisible(true);
-            
+
             QSizePolicy sp = header->sizePolicy();
             sp.setHorizontalPolicy(orientation == Orientation::Vertical ? QSizePolicy::Preferred : QSizePolicy::Fixed);
             header->setSizePolicy(sp);

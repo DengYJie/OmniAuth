@@ -146,9 +146,7 @@ namespace ui::navigation {
                 m_text);
         }
 
-        if (hasKeyboardFocus()) {
-            drawFocusVisual(painter, QRectF(0, 0, width(), height()));
-        }
+        drawFocusVisual(painter, QRectF(0, 0, width(), height()));
     }
 
 } // namespace ui::navigation

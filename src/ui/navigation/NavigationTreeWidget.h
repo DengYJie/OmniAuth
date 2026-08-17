@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <QHash>
 #include <QSet>
@@ -22,9 +22,6 @@ namespace fluent::scrolling {
     class ScrollView;
 }
 
-namespace fluent::dialogs_flyouts {
-    class Popup;
-}
 
 namespace ui::navigation {
 
@@ -43,11 +40,12 @@ namespace ui::navigation {
      */
     class NavigationTreeWidget : public NavigationTreeWidgetBase, public INavigationFocusHost {
         Q_OBJECT
+            Q_PROPERTY(bool selectionFollowsFocus READ selectionFollowsFocus WRITE setSelectionFollowsFocus)
 
             // flyout 通过克隆节点重建子树，需访问节点受保护的结构成员
             friend class NavigationFlyout;
-            friend class NavigationPanel;
-            friend class NavigationTreeWidgetBase;
+        friend class NavigationPanel;
+        friend class NavigationTreeWidgetBase;
 
     public:
         explicit NavigationTreeWidget(QWidget* parent = nullptr);
@@ -222,6 +220,9 @@ namespace ui::navigation {
     public:
         void moveFocusBy(int delta) override;
 
+        bool selectionFollowsFocus() const { return m_selectionFollowsFocus; }
+        void setSelectionFollowsFocus(bool follows);
+
         /// 是否有溢出项（Top 模式栏内容超宽时）
         bool hasOverflowItems() const { return !m_overflowNodes.isEmpty() || !m_overflowHeaders.isEmpty(); }
 
@@ -295,6 +296,7 @@ namespace ui::navigation {
         bool m_updatingOverflow = false;
         /// 防止 setCurrentItem 信号级联重入
         bool m_settingCurrentItem = false;
+        bool m_selectionFollowsFocus = false;
     };
 
 } // namespace ui::navigation

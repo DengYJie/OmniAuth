@@ -1,5 +1,6 @@
 #include "ui/navigation/NavigationPanel.h"
 
+#include <QApplication>
 #include <QDynamicPropertyChangeEvent>
 #include <QEvent>
 #include <QPainter>
@@ -159,10 +160,12 @@ namespace ui::navigation {
 
     void NavigationPanel::setBackButtonVisible(bool visible)
     {
-        if (m_backButton && m_backButton->isVisible() != visible) {
+        if (m_backButton) {
+            bool changed = (m_backButton->isVisibleTo(this) != visible);
             m_backButton->setVisible(visible);
-            updateGeometry();
-            emit backButtonVisibleChanged(visible);
+            if (changed) {
+                updateGeometry();
+            }
         }
     }
 
@@ -175,7 +178,6 @@ namespace ui::navigation {
     {
         if (m_backButton && m_backButton->isEnabled() != enabled) {
             m_backButton->setEnabled(enabled);
-            emit backEnabledChanged(enabled);
         }
     }
 
@@ -187,10 +189,12 @@ namespace ui::navigation {
     void NavigationPanel::setPaneToggleButtonVisible(bool visible)
     {
         m_paneToggleExplicitlyHidden = !visible;
-        if (m_paneToggleButton && m_paneToggleButton->isHidden() == visible) {
+        if (m_paneToggleButton) {
+            bool changed = (m_paneToggleButton->isVisibleTo(this) != visible);
             m_paneToggleButton->setVisible(visible);
-            updateGeometry();
-            emit paneToggleButtonVisibleChanged(visible);
+            if (changed) {
+                updateGeometry();
+            }
         }
     }
 
@@ -201,6 +205,15 @@ namespace ui::navigation {
         m_isCompacted = compacted;
         if (!compacted)
             closeFlyoutMenu(true);
+
+        if (QWidget* focused = QApplication::focusWidget()) {
+            if (isAncestorOf(focused)) {
+                if (!NavigationWidget::isKeyboardMode()) {
+                    focused->clearFocus();
+                }
+            }
+        }
+
         if (m_tree)
             m_tree->setCompacted(compacted);
         if (m_paneToggleButton)
@@ -211,6 +224,18 @@ namespace ui::navigation {
         refreshIndicatorVisuals();
 
         emit compactedChanged(m_isCompacted);
+    }
+
+    bool NavigationPanel::selectionFollowsFocus() const
+    {
+        return m_tree ? m_tree->selectionFollowsFocus() : false;
+    }
+
+    void NavigationPanel::setSelectionFollowsFocus(bool follows)
+    {
+        if (m_tree && m_tree->selectionFollowsFocus() != follows) {
+            m_tree->setSelectionFollowsFocus(follows);
+        }
     }
 
     void NavigationPanel::togglePane()
@@ -248,13 +273,13 @@ namespace ui::navigation {
         }
 
         // 如果之前的 proxy 不可见，强制降级为无动画瞬发（防止坐标乱飞）
-        if (prevProxy && prevProxy->isHidden()) {
+        if (prevProxy && !prevProxy->isVisibleTo(this)) {
             animated = false;
         }
 
         const QRectF targetRect = m_tree->indicatorRectInHost(curProxy, this);
 
-        if (!curProxy || curProxy->isHidden()) {
+        if (!curProxy || !curProxy->isVisibleTo(this)) {
             m_indicator->activateAt(targetRect, false);
             return;
         }
@@ -414,7 +439,11 @@ namespace ui::navigation {
     bool NavigationPanel::event(QEvent* event)
     {
         if (event->type() == QEvent::WindowDeactivate) {
-            closeFlyoutMenu(true);
+            if (m_activeFlyout && (qApp->activeWindow() == m_activeFlyout.data() || m_activeFlyout->isAncestorOf(qApp->focusWidget()))) {
+                // 不在焦点进入 flyout 时误关闭
+            } else {
+                closeFlyoutMenu(true);
+            }
         }
         if (event->type() == QEvent::DynamicPropertyChange) {
             if (auto* change = static_cast<QDynamicPropertyChangeEvent*>(event);
@@ -514,13 +543,9 @@ namespace ui::navigation {
 
         const QRect anchorRect(anchorWidget->mapTo(this, QPoint(0, 0)), anchorWidget->size());
 
-        // 无动画立即关闭旧的，避免旧关闭动画与新 flyout 重叠
         closeFlyoutMenu(false);
 
-        // 复用 Popup 会残留旧尺寸/布局状态，每次新建干净实例
         auto* flyout = new NavigationFlyout(m_tree, this);
-
-        // 克隆该分类的子树（含递归子分类），保留展开/选中态；flyout 内分类可内联折叠
         flyout->rebuildSubtree(categoryKey);
 
         connect(flyout, &NavigationFlyout::aboutToShow, this, [this, flyout]() {
@@ -607,8 +632,6 @@ namespace ui::navigation {
         closeOverflowMenu(false);
 
         auto* flyout = new NavigationFlyout(m_tree, this);
-
-        // 克隆溢出条目子树（header 与节点按序渲染，分类可内联折叠）
         flyout->rebuildSubtreeFromEntries(entries);
 
         connect(flyout, &NavigationFlyout::aboutToShow, this, [this, flyout]() {

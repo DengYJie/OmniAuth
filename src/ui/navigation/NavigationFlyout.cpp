@@ -7,7 +7,6 @@
 #include "components/foundation/overlay/OverlayShadow.h"
 
 #include <QApplication>
-#include <QDebug>
 #include <QEasingCurve>
 #include <QEvent>
 #include <QFontMetrics>
@@ -24,7 +23,6 @@
 #include <QWheelEvent>
 #include <QBoxLayout>
 #include <QVBoxLayout>
-
 #include <QHash>
 
 #include "ui/navigation/NavigationPushButton.h"
@@ -38,7 +36,6 @@ namespace {
 
 QPixmap generateGrainTile(qreal devicePixelRatio)
 {
-    // 缓存在全局，避免每次绘制重新生成噪点
     static QHash<int, QPixmap> s_grainCache;
     const int dprInt = qMax(1, qRound(devicePixelRatio * 100));
 
@@ -85,35 +82,31 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
 } // namespace
 
     NavigationFlyout::NavigationFlyout(NavigationTreeWidget* rootTree, QWidget* host)
-        : NavigationTreeWidgetBase(rootTree, nullptr)
+        : NavigationTreeWidgetBase(rootTree, host)
         , m_host(host)
     {
-        // 独立顶层窗口透明背景支持；WindowDoesNotAcceptFocus 防止点击内部控件时抢焦点
-        // 导致主窗口收到 WindowDeactivate 而误关闭 flyout（WinUI3 flyout 同规范）
-        setWindowFlags(Qt::Tool | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint
-                       | Qt::WindowDoesNotAcceptFocus);
+        setWindowFlags(Qt::Popup | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
         setAttribute(Qt::WA_TranslucentBackground, true);
         setAttribute(Qt::WA_NoSystemBackground, true);
-        setAttribute(Qt::WA_ShowWithoutActivating, true);
         setAutoFillBackground(false);
 
-        // 同步宿主主题覆盖，使 flyout 与 panel 主题保持一致
         ::fluent::overlay::syncInheritedThemeOverride(this, host);
 
-        // 四周留出阴影缓冲，使子部件严格限制在卡片内部
+        const int cardPadding = themeSpacing().xSmall;
         m_contentLayout = new QBoxLayout(QBoxLayout::TopToBottom, this);
-        m_contentLayout->setContentsMargins(kShadowMargin, kShadowMargin + themeSpacing().xSmall,
-            kShadowMargin, kShadowMargin + themeSpacing().xSmall);
-        m_contentLayout->setSpacing(0);
+        m_contentLayout->setContentsMargins(
+            kShadowMargin + cardPadding,
+            kShadowMargin + cardPadding,
+            kShadowMargin + cardPadding,
+            kShadowMargin + cardPadding);
+        m_contentLayout->setSpacing(2);
 
         if (m_host)
             m_host->installEventFilter(this);
 
-        // 浮层内部指示条载体：配置为垂直模式，用于 Portal In 动画
         m_flyoutIndicator = new NavigationIndicator(this);
         m_flyoutIndicator->setOrientation(Orientation::Vertical);
 
-        // 权威状态同步：主树选中项变更时，实时同步浮层内所有克隆项的高亮选中态
         if (rootTree) {
             connect(rootTree, &NavigationTreeWidget::itemSelected, this, [this](const QString& selectedKey) {
                 for (auto it = m_itemIndex.begin(); it != m_itemIndex.end(); ++it) {
@@ -129,7 +122,6 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
 
     NavigationFlyout::~NavigationFlyout()
     {
-        // 防止 host 析构后仍指向本对象触发悬垂崩溃
         if (m_host)
             m_host->removeEventFilter(this);
     }
@@ -150,7 +142,6 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
     void NavigationFlyout::rebuildSubtreeFromEntries(const QVector<NavigationOverflowEntry>& entries)
     {
         m_itemIndex.clear();
-        // header 与节点按序插入以保留原始分区顺序；header 不参与宽度计算
         for (const auto& entry : entries) {
             if (entry.header) {
                 auto* header = new NavigationSectionHeader(entry.header->text(), nullptr);
@@ -167,18 +158,14 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
 
     void NavigationFlyout::cloneNode(NavigationTreeWidget* srcNode, NavigationTreeWidget* parentClone, int depth)
     {
-        // 克隆节点挂到 flyout 下（widget 父级），m_root 仍指向原树保证切页落到原树
         auto* node = new NavigationTreeWidget(root());
         node->setParent(this);
         node->m_routeKey = srcNode->routeKey();
         node->m_parentNode = parentClone;
         node->setInlineExpansion(true);
 
-        // flyout 内折叠/展开分类时，仅同步主树源节点的展开状态标志（供下次克隆恢复），
-        // 不调用 setExpanded：避免其 show 子容器到 m_mainLayout，容器显隐由导航布局统一管理
         connect(node, &NavigationTreeWidgetBase::expansionChanged, this,
             [this, root = root()](const QString& key, bool expanded) {
-                qDebug() << "[NavigationFlyout::expansionChanged] category:" << key << "expanded:" << expanded;
                 if (auto* target = root->nodeFor(key))
                     target->m_isExpanded = expanded;
                 emit expansionChanged(key, expanded);
@@ -201,8 +188,6 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
         node->m_itemWidget = item;
         m_itemIndex.insert(item->routeKey(), item);
 
-        // 决策槽与源树一致：叶子切页后关闭 flyout，
-        // 分类走内联展开（onItemClicked 内联分支），不关闭
         connect(item, &NavigationTreeItem::itemClicked, node,
             [node, this](const QString& key, bool chevronClicked) {
                 node->onItemClicked(key, chevronClicked);
@@ -219,12 +204,10 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
                 container->setAutoFillBackground(false);
                 auto* childLayout = new QVBoxLayout(container);
                 childLayout->setContentsMargins(0, 0, 0, 0);
-                childLayout->setSpacing(0);
+                childLayout->setSpacing(2);
                 parentClone->m_childrenContainer = container;
                 parentClone->m_childrenLayout = childLayout;
 
-                // 参考主树机制：容器必须插入到父项控件所在的真实宿主布局中（紧随父项之后），
-                // 嵌套多级子分类的父项位于上级 childLayout 中，而非顶层 m_contentLayout
                 QBoxLayout* hostLayout = parentClone->m_itemWidget && parentClone->m_itemWidget->parentWidget()
                     ? qobject_cast<QBoxLayout*>(parentClone->m_itemWidget->parentWidget()->layout())
                     : m_contentLayout;
@@ -232,11 +215,8 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
                 if (hostLayout) {
                     const int idx = hostLayout->indexOf(parentClone->m_itemWidget) + 1;
                     hostLayout->insertWidget(idx, container);
-                    qDebug() << "[NavigationFlyout::cloneNode] Created container for parent:" << parentClone->routeKey()
-                             << "inserted into hostLayout:" << hostLayout << "at index:" << idx;
                 } else {
                     m_contentLayout->addWidget(container);
-                    qDebug() << "[NavigationFlyout::cloneNode] Fallback: added container to m_contentLayout for parent:" << parentClone->routeKey();
                 }
                 container->setVisible(parentClone->m_isExpanded);
             }
@@ -247,7 +227,6 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
             m_children.append(node);
         }
 
-        // 选中态复制：节点是当前选中项或其祖先时高亮（选中权威仍在原树）
         const QString currentKey = root()->currentRouteKey();
         if (srcNode->routeKey() == currentKey) {
             item->setSelected(true);
@@ -256,11 +235,9 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
             item->setSelected(true);
         }
 
-        // 递归克隆子节点
         for (NavigationTreeWidget* child : srcNode->children())
             cloneNode(child, node, depth + 1);
 
-        // 复制展开态：递归完成后子容器已就绪
         if (node->isCategory() && srcNode->m_isExpanded)
             node->setExpanded(true, false);
     }
@@ -332,14 +309,11 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
 
     void NavigationFlyout::onIndicatorOwnerChanged(NavigationTreeItem* item, bool isOwner)
     {
-        // 浮层正在关闭时，忽略任何所有权变更，防止在淡出时突然重新绘制出指示条
         if (m_isClosing) return;
-
         if (!item) return;
+
         NavigationTreeItem* clone = m_itemIndex.value(item->routeKey());
-        if (!clone) {
-            return;
-        }
+        if (!clone) return;
 
         if (isOwner) {
             NavigationTreeItem* visualItem = getVisualProxyFor(clone);
@@ -385,8 +359,8 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
 
         maxContentW = qMax(maxContentW, kCompactFlyoutRowWidth);
 
-        // 外宽需含阴影 margin，否则阴影被裁剪
-        const int outerW = maxContentW + 2 * kShadowMargin;
+        const int cardPadding = themeSpacing().xSmall;
+        const int outerW = maxContentW + 2 * (kShadowMargin + cardPadding);
         setMinimumWidth(outerW);
         setMaximumWidth(outerW);
         if (m_contentLayout)
@@ -398,7 +372,6 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
     {
         if (m_isOpen == open) return;
         m_isOpen = open;
-        emit isOpenChanged(open);
         if (open) {
             this->open();
         } else {
@@ -418,23 +391,18 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
         QPoint slideInOffset;
 
         if (m_placement == Placement::Right) {
-            // Compact 模式: 在 anchor 右侧弹出，Y方向居中
             const int panelRightX = m_host->mapToGlobal(QPoint(m_host->width(), 0)).x();
             const int anchorCenterY = anchorRect.y() + anchorRect.height() / 2;
             const int yPos = anchorCenterY - cardSize.height() / 2;
             globalCardTopLeft = QPoint(panelRightX + m_anchorOffset, yPos);
-            slideInOffset = QPoint(8, 0); // kCompactFlyoutSlideOffset = 8
+            slideInOffset = QPoint(8, 0);
         } else {
-            // Top 模式 (Bottom / BottomRight): 在 anchor 下方弹出
             const int panelBottomY = m_host->mapToGlobal(QPoint(0, m_host->height())).y();
-            
             int flyoutX = 0;
             if (m_placement == Placement::BottomRight) {
-                // 右对齐：Flyout 右边缘与 Anchor 右边缘对齐
                 const int anchorRightX = anchorRect.right();
-                flyoutX = anchorRightX - cardSize.width() + 1; // +1 to compensate rect().right() logic
+                flyoutX = anchorRightX - cardSize.width() + 1;
             } else {
-                // 默认居中：X方向居中
                 const int anchorCenterX = anchorRect.x() + anchorRect.width() / 2;
                 flyoutX = anchorCenterX - cardSize.width() / 2;
             }
@@ -459,7 +427,6 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
     {
         if (!m_isOpen) {
             m_isOpen = true;
-            emit isOpenChanged(true);
             emit aboutToShow();
         }
 
@@ -469,7 +436,6 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
         const QSize cardSize = ::fluent::overlay::visibleCardRect(rect(), kShadowMargin).size();
         QPoint cardPos = m_globalCardPos;
 
-        // 屏幕边界约束：下方不足则向上翻转，左右 clamp 到可用区
         QScreen* screen = QGuiApplication::screenAt(m_globalCardPos);
         if (!screen)
             screen = QGuiApplication::primaryScreen();
@@ -485,11 +451,9 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
             cardPos = ::fluent::overlay::clampCardTopLeft(cardPos, cardSize, avail, 0);
         }
 
-        // 记录卡片相对宿主原点的偏移，供宿主移动时跟随重定位
         const QPoint outerTopLeft = cardPos - QPoint(kShadowMargin, kShadowMargin);
         m_hostAnchorOffset = cardPos - m_host->mapToGlobal(QPoint(0, 0));
 
-        // 滑入方向反转：向上翻转后从下往上滑入，Y 分量取反
         const QPoint effectiveOffset = m_flippedUp
             ? QPoint(m_slideInOffset.x(), -m_slideInOffset.y())
             : m_slideInOffset;
@@ -506,12 +470,10 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
             if (!m_animGroup) {
                 m_animGroup = new QParallelAnimationGroup(this);
 
-                // 位移 (Slide)
                 m_slideAnim = new QPropertyAnimation(this, "pos", this);
                 m_slideAnim->setEasingCurve(themeAnimation().decelerate);
                 m_slideAnim->setDuration(themeAnimation().normal);
 
-                // 渐显 (Fade)
                 m_fadeAnim = new QPropertyAnimation(this, "windowOpacity", this);
                 m_fadeAnim->setEasingCurve(QEasingCurve::Linear);
                 m_fadeAnim->setDuration(themeAnimation().normal);
@@ -537,9 +499,7 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
             m_animGroup->start();
         }
 
-        // 全局拦截外部点击，接管 Light Dismiss 关闭与事件穿透决策
         qApp->installEventFilter(this);
-
         raise();
     }
 
@@ -552,7 +512,12 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
 
         if (m_isOpen) {
             m_isOpen = false;
-            emit isOpenChanged(false);
+        }
+
+        if (m_anchorWidget) {
+            if (NavigationWidget::isKeyboardMode()) {
+                m_anchorWidget->setFocus(Qt::ShortcutFocusReason);
+            }
         }
 
         if (!m_exitAnimationEnabled || NavigationWidget::isReducedMotion()) {
@@ -563,7 +528,7 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
         }
 
         if (m_animGroup) {
-            m_animGroup->stop(); // stop any ongoing entry animation
+            m_animGroup->stop();
         }
 
         QParallelAnimationGroup* closeGroup = new QParallelAnimationGroup(this);
@@ -578,16 +543,15 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
         QPropertyAnimation* slideOut = new QPropertyAnimation(this, "pos", closeGroup);
         slideOut->setStartValue(pos());
 
-        // 根据入场位移计算退场位移（进退对称原则）
         QPoint effectiveOffset = m_flippedUp
             ? QPoint(m_slideInOffset.x(), -m_slideInOffset.y())
             : m_slideInOffset;
 
-        QPoint exitOffset(0, -8); // 默认退场上浮
-        if (effectiveOffset.y() > 0) exitOffset = QPoint(0, -8);      // 从上向下滑入 -> 向上回缩
-        else if (effectiveOffset.y() < 0) exitOffset = QPoint(0, 8);  // 从下向上滑入 -> 向下回缩
-        else if (effectiveOffset.x() > 0) exitOffset = QPoint(-8, 0); // 从左向右滑入 -> 向左回缩
-        else if (effectiveOffset.x() < 0) exitOffset = QPoint(8, 0);  // 从右向左滑入 -> 向右回缩
+        QPoint exitOffset(0, -8);
+        if (effectiveOffset.y() > 0) exitOffset = QPoint(0, -8);
+        else if (effectiveOffset.y() < 0) exitOffset = QPoint(0, 8);
+        else if (effectiveOffset.x() > 0) exitOffset = QPoint(-8, 0);
+        else if (effectiveOffset.x() < 0) exitOffset = QPoint(8, 0);
 
         slideOut->setEndValue(pos() + exitOffset);
         slideOut->setDuration(animTokens.fast);
@@ -610,26 +574,24 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
     {
         QWidget* topLevel = m_host ? m_host->window() : nullptr;
 
-        // 宏主、锁点或顶级窗口发生变化时联动
         if (watched == m_host || watched == m_anchorWidget || (topLevel && watched == topLevel)) {
             switch (event->type()) {
             case QEvent::Move:
                 if (isVisible()) {
-                    // 顶级窗口或宿主移动时，跟随重定位
                     const QPoint hostTopLeft = m_host->mapToGlobal(QPoint(0, 0));
                     move(hostTopLeft + m_hostAnchorOffset - QPoint(kShadowMargin, kShadowMargin));
                 }
                 break;
             case QEvent::Resize:
                 if (isVisible()) {
-                    // 顶级窗口或宿主尺寸改变时，内部排版可能巨变，安全起见关闭 Flyout
                     close();
                 }
                 break;
             case QEvent::WindowDeactivate:
-                // 仅当顶级窗口失焦时才关闭（避免内部子控件失焦导致误杀）
                 if (watched == topLevel) {
-                    close();
+                    if (qApp->activeWindow() != this && !this->isAncestorOf(qApp->focusWidget())) {
+                        close();
+                    }
                 }
                 break;
             case QEvent::Hide:
@@ -642,11 +604,9 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
         }
 
         if (isVisible()) {
-            // 全局失焦（点击其他应用程序）
             if (event->type() == QEvent::ApplicationDeactivate) {
                 close();
             }
-            // ESC 键关闭
             else if (event->type() == QEvent::KeyPress) {
                 auto* ke = static_cast<QKeyEvent*>(event);
                 if (ke->key() == Qt::Key_Escape && (m_closePolicy & CloseOnEscape)) {
@@ -656,7 +616,6 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
             }
         }
 
-        // 仅在弹窗外执行命中测试；命中后的吞噬/放行决定点击是否穿透
         if (isVisible() && (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::Wheel)) {
             QPoint globalPos;
             if (event->type() == QEvent::MouseButtonPress) {
@@ -673,36 +632,29 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
             if (!insideCard) {
                 if (event->type() == QEvent::Wheel) {
                     close();
-                    // 滚轮事件一律放行（让底下能够正常滚动）
                     return false;
                 }
 
-                // 层级判定优先，几何判定兜底，增强命中健壮性
                 QWidget* hitWidget = QApplication::widgetAt(globalPos);
                 auto isHit = [&](QWidget* target) {
                     if (!target) return false;
                     if (hitWidget && (hitWidget == target || target->isAncestorOf(hitWidget)))
                         return true;
                     return target->rect().contains(target->mapFromGlobal(globalPos));
-                    };
+                };
 
-                // 1. 目标排除：命中锚点则关闭并吞噬，避免穿透后重新激活
                 if (isHit(m_anchorWidget)) {
                     close();
                     return true;
                 }
 
-                // 2. 穿透白名单：关闭但放行事件，让目标控件正常响应
                 for (const auto& ptWidget : std::as_const(m_lightDismissPassthrough)) {
                     if (isHit(ptWidget)) {
-                        // 赶在 Qt 原生 Popup 拦截前主动关闭，破坏其拦截条件
                         close();
-                        // 【放行】，让该控件响应该点击事件
                         return false;
                     }
                 }
 
-                // 3. 默认 LightDismiss：按策略决定吞噬（默认吸收）或放行
                 if (m_closePolicy & CloseOnPressOutside) {
                     close();
                     return m_lightDismissConsumesPress;
@@ -715,11 +667,24 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
 
     bool NavigationFlyout::event(QEvent* e)
     {
-        // 子控件（克隆节点的 children container）每次改变 fixedHeight 都会向父 widget
-        // 发 LayoutRequest。在此捕获并 adjustSize()，使 flyout 高度跟随动画实时伸缩
         if (e->type() == QEvent::LayoutRequest)
             adjustSize();
         return NavigationTreeWidgetBase::event(e);
+    }
+
+    void NavigationFlyout::showEvent(QShowEvent* event)
+    {
+        NavigationTreeWidgetBase::showEvent(event);
+        
+        QTimer::singleShot(0, this, [this]() {
+            if (!m_children.isEmpty()) {
+                if (NavigationWidget::isKeyboardMode()) {
+                    if (auto* firstChild = m_children.first()->m_itemWidget) {
+                        firstChild->setFocus(Qt::ShortcutFocusReason);
+                    }
+                }
+            }
+        });
     }
 
     void NavigationFlyout::hideEvent(QHideEvent* event)
@@ -727,10 +692,13 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
         qApp->removeEventFilter(this);
         QWidget::hideEvent(event);
         if (m_isOpen) {
-            // 如果外部直接调用 hide() 或系统强制隐藏，补发 aboutToHide 以保证信号成对闭环
             emit aboutToHide();
             m_isOpen = false;
-            emit isOpenChanged(false);
+        }
+        if (m_anchorWidget) {
+            if (NavigationWidget::isKeyboardMode()) {
+                m_anchorWidget->setFocus(Qt::ShortcutFocusReason);
+            }
         }
         emit closed();
     }
@@ -742,17 +710,20 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
             event->accept();
             return;
         }
+        if (event->key() == Qt::Key_Up || event->key() == Qt::Key_Down) {
+            moveFocusBy(event->key() == Qt::Key_Up ? -1 : 1);
+            event->accept();
+            return;
+        }
         NavigationTreeWidgetBase::keyPressEvent(event);
     }
 
     void NavigationFlyout::paintEvent(QPaintEvent* event)
     {
         Q_UNUSED(event)
-            QPainter painter(this);
+        QPainter painter(this);
         painter.setRenderHint(QPainter::Antialiasing);
 
-        // 独立顶层窗口需先用 CompositionMode_Source 将整个窗口透明清屏（与 FluentMenu 一致），
-        // 确保 alpha 通道置 0，避免 DWM 渲染脏数据或不透明黑底
         painter.setCompositionMode(QPainter::CompositionMode_Source);
         painter.fillRect(rect(), Qt::transparent);
         painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
@@ -760,13 +731,11 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
         const QRect cardRect = ::fluent::overlay::visibleCardRect(rect(), kShadowMargin);
         const int r = themeRadius().overlay;
 
-        // Medium 阴影
         ::fluent::overlay::paintLayeredShadow(painter, cardRect, r,
             themeShadow(Elevation::Medium));
 
         const auto& colors = themeColorsRef();
 
-        // 设置圆角裁剪区域，确保所有 4 层效果都不会溢出卡片边缘
         QPainterPath clipPath;
         clipPath.addRoundedRect(QRectF(cardRect).adjusted(0.5, 0.5, -0.5, -0.5), r, r);
         painter.save();
@@ -775,36 +744,82 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
         const bool isDark = effectiveTheme() == Dark;
         const auto acrylicToken = ::Material::Acrylic::get(isDark);
 
-        // Layer 1: Base Background (底层)
-        // 使用当前主体的背景色作为亚克力的基础（无需截图）
+        // Acrylic Layer 1: Base Background
         painter.fillRect(cardRect, colors.bgLayer);
 
-        // Layer 2: Exclusion Blend / Luminosity (排他/明度混合层)
-        // 降低底层对比度，保证文字的绝对可读性。直接从主题系统拉取 Luminosity 透明度
+        // Acrylic Layer 2: Exclusion Blend / Luminosity
         painter.setCompositionMode(QPainter::CompositionMode_Exclusion);
         QColor luminosityColor = Qt::white;
-        // 因为是实色底，降低原明度参数的权重，防止过曝/过暗
         luminosityColor.setAlphaF(acrylicToken.luminosityOpacity * 0.25);
         painter.fillRect(cardRect, luminosityColor);
         painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
 
-        // Layer 3: Color / Tint Overlay (着色层)
-        // 赋予亚克力具体的主题色调，直接从 Fluent 设计系统拉取 Tint 颜色
+        // Acrylic Layer 3: Tint Overlay
         QColor tintColor = acrylicToken.tintColor;
-        // In-App Flyout 专属高覆盖率 (约80%)，保证悬浮层可读性
         tintColor.setAlphaF(0.80);
         painter.fillRect(cardRect, tintColor);
 
-        // Layer 4: Noise / Grain (噪点层)
-        // 防止色带断层，提供磨砂玻璃特有的物理质感
+        // Acrylic Layer 4: Noise Grain
         paintFlyoutGrain(painter, cardRect, isDark ? 0.04 : 0.03);
 
         painter.restore();
 
-        // 绘制 3. 1px 外边框
         painter.setBrush(Qt::NoBrush);
         painter.setPen(QPen(colors.strokeSurface, 1.0));
         painter.drawRoundedRect(QRectF(cardRect).adjusted(0.5, 0.5, -0.5, -0.5), r, r);
+    }
+
+    QVector<NavigationWidget*> NavigationFlyout::visibleItems() const
+    {
+        QVector<NavigationWidget*> result;
+        for (NavigationTreeWidget* child : m_children)
+            collectVisible(child, result);
+        return result;
+    }
+
+    void NavigationFlyout::collectVisible(NavigationTreeWidget* node, QVector<NavigationWidget*>& out) const
+    {
+        if (!node)
+            return;
+        if (node->itemWidget())
+            out.append(node->itemWidget());
+        if (node->isCategory() && node->m_isExpanded) {
+            for (NavigationTreeWidget* child : node->children())
+                collectVisible(child, out);
+        }
+    }
+
+    void NavigationFlyout::moveFocusBy(int delta)
+    {
+        const QVector<NavigationWidget*> items = visibleItems();
+        if (items.isEmpty())
+            return;
+
+        QWidget* focused = qApp->focusWidget();
+        int idx = -1;
+        for (int i = 0; i < items.size(); ++i) {
+            if (items.at(i) == focused || items.at(i)->isAncestorOf(focused)) {
+                idx = i;
+                break;
+            }
+        }
+
+        if (idx < 0) {
+            idx = (delta > 0) ? -1 : items.size();
+        }
+
+        int next = idx;
+        for (int k = 0; k < items.size(); ++k) {
+            next = (next + delta + items.size()) % items.size();
+            NavigationWidget* target = items.at(next);
+
+            if (target->focusPolicy() == Qt::NoFocus || !target->isVisibleTo(this) || !target->isEnabled()) {
+                continue;
+            }
+
+            target->setFocus(Qt::ShortcutFocusReason);
+            break;
+        }
     }
 
 } // namespace ui::navigation

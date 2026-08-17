@@ -12,6 +12,7 @@
 #include "components/foundation/overlay/OverlayShadow.h"
 #include "design/Elevation.h"
 
+#include "ui/navigation/NavigationFocusHost.h"
 #include "ui/navigation/NavigationIndicator.h"
 #include "ui/navigation/NavigationMetrics.h"
 #include "ui/navigation/NavigationTreeItem.h"
@@ -35,9 +36,9 @@ namespace ui::navigation {
      * NavigationTreeWidgetBase 的派生，内部以克隆子树渲染被激活分类的子项（可折叠、带选中态），
      * 叠加 Medium 阴影、滑入动画、屏幕边界 clamp 与上下翻转，以及锚点跟随与 light dismiss。
      */
-    class NavigationFlyout : public NavigationTreeWidgetBase {
+    class NavigationFlyout : public NavigationTreeWidgetBase, public INavigationFocusHost {
         Q_OBJECT
-        Q_PROPERTY(bool isOpen READ isOpen WRITE setIsOpen NOTIFY isOpenChanged)
+        Q_PROPERTY(bool isOpen READ isOpen WRITE setIsOpen)
         Q_PROPERTY(Placement placement READ placement WRITE setPlacement)
         Q_PROPERTY(int anchorOffset READ anchorOffset WRITE setAnchorOffset)
 
@@ -113,6 +114,7 @@ namespace ui::navigation {
         void rebuildSubtreeFromEntries(const QVector<NavigationOverflowEntry>& entries);
 
         NavigationIndicator* indicator() const { return m_flyoutIndicator; }
+        QWidget* host() const { return m_host; }
 
         /**
          * @brief 触发浮层内选中项跨窗口飞跃入场（Cross Window Portal In）动画。
@@ -140,6 +142,8 @@ namespace ui::navigation {
 
         void onIndicatorOwnerChanged(NavigationTreeItem* item, bool isOwner);
 
+        void moveFocusBy(int delta) override;
+
     signals:
         /// 即将开始展示（入场动效开始前）
         void aboutToShow();
@@ -149,18 +153,20 @@ namespace ui::navigation {
         void aboutToHide();
         /// 已完全关闭（退场动效结束，供销毁）
         void closed();
-        void isOpenChanged(bool open);
         void expansionChanged(const QString& routeKey, bool expanded);
 
     protected:
         bool eventFilter(QObject* watched, QEvent* event) override;
         bool event(QEvent* event) override;
+        void showEvent(QShowEvent* event) override;
         void hideEvent(QHideEvent* event) override;
         void paintEvent(QPaintEvent* event) override;
         void keyPressEvent(QKeyEvent* event) override;
         void onThemeUpdated() override { update(); }
 
     private:
+        QVector<NavigationWidget*> visibleItems() const;
+        void collectVisible(NavigationTreeWidget* node, QVector<NavigationWidget*>& out) const;
         void cloneNode(NavigationTreeWidget* srcNode, NavigationTreeWidget* parentClone, int depth);
         void finalizeSize();
 

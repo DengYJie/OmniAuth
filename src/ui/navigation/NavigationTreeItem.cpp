@@ -240,10 +240,12 @@ namespace ui::navigation {
 
     void NavigationTreeItem::keyPressEvent(QKeyEvent* event)
     {
-        if (isCategory() && (event->key() == Qt::Key_Right || event->key() == Qt::Key_Left)) {
-            emit itemClicked(m_routeKey, /*chevronClicked=*/true);
-            event->accept();
-            return;
+        if (isCategory() && (event->key() == Qt::Key_Space || event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter)) {
+            if (!isSelectable()) {
+                emit itemClicked(m_routeKey, /*chevronClicked=*/true);
+                event->accept();
+                return;
+            }
         }
         NavigationPushButton::keyPressEvent(event);
     }

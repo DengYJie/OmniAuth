@@ -34,10 +34,11 @@ namespace ui::navigation {
     class NavigationPanel : public QWidget, public fluent::FluentElement,
         public INavigationFocusHost {
         Q_OBJECT
-            Q_PROPERTY(bool backButtonVisible READ isBackButtonVisible WRITE setBackButtonVisible NOTIFY backButtonVisibleChanged)
-            Q_PROPERTY(bool backEnabled READ isBackEnabled WRITE setBackEnabled NOTIFY backEnabledChanged)
-            Q_PROPERTY(bool paneToggleButtonVisible READ isPaneToggleButtonVisible WRITE setPaneToggleButtonVisible NOTIFY paneToggleButtonVisibleChanged)
+            Q_PROPERTY(bool backButtonVisible READ isBackButtonVisible WRITE setBackButtonVisible)
+            Q_PROPERTY(bool backEnabled READ isBackEnabled WRITE setBackEnabled)
+            Q_PROPERTY(bool paneToggleButtonVisible READ isPaneToggleButtonVisible WRITE setPaneToggleButtonVisible)
             Q_PROPERTY(bool compacted READ isCompacted WRITE setCompacted NOTIFY compactedChanged)
+            Q_PROPERTY(bool selectionFollowsFocus READ selectionFollowsFocus WRITE setSelectionFollowsFocus)
 
     public:
         explicit NavigationPanel(QWidget* parent = nullptr);
@@ -111,6 +112,9 @@ namespace ui::navigation {
         bool isCompacted() const { return m_isCompacted; }
         void setCompacted(bool compacted);
 
+        bool selectionFollowsFocus() const;
+        void setSelectionFollowsFocus(bool follows);
+
         void setOrientation(Orientation orientation);
         Orientation orientation() const { return m_orientation; }
 
@@ -129,9 +133,6 @@ namespace ui::navigation {
         void itemSelected(const QString& routeKey);
         void backRequested();
         void compactedChanged(bool compacted);
-        void backButtonVisibleChanged(bool visible);
-        void backEnabledChanged(bool enabled);
-        void paneToggleButtonVisibleChanged(bool visible);
         void indicatorOwnerChanged(NavigationTreeItem* item, bool isOwner);
 
     protected:

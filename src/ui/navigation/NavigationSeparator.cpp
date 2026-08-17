@@ -9,6 +9,7 @@ NavigationSeparator::NavigationSeparator(QWidget* parent)
     : NavigationWidget(false, parent)
 {
     setCursor(Qt::ArrowCursor);
+    setFocusPolicy(Qt::NoFocus);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     // 覆盖基类 setFixedHeight(kItemHeight)：Left 模式分隔线占位 = 上留白3 + 线1 + 下留白4
     setFixedHeight(kSeparatorLeadingMargin + kSeparatorLineThickness + kSeparatorTrailingMargin);
