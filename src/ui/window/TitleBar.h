@@ -6,6 +6,10 @@
 #include <QString>
 #include <QWidget>
 
+namespace ui::animation {
+class AnimatedIcon;
+}
+
 namespace ui::window {
 
 class ElidedLabel;
@@ -19,7 +23,7 @@ class ElidedLabel;
 class TitleBar : public fluent::windowing::TitleBar {
     Q_OBJECT
     Q_PROPERTY(QString title READ title WRITE setTitle NOTIFY titleChanged)
-    Q_PROPERTY(QString subtitle READ subtitle WRITE setSubtitle NOTIFY subtitleChanged)
+    Q_PROPERTY(QString subtitle READ subtitle WRITE setSubtitle NOTIFY titleChanged)
     Q_PROPERTY(QIcon icon READ icon WRITE setIcon NOTIFY iconChanged)
     Q_PROPERTY(bool backButtonVisible READ isBackButtonVisible WRITE setBackButtonVisible NOTIFY backButtonVisibleChanged)
     Q_PROPERTY(bool backButtonEnabled READ isBackButtonEnabled WRITE setBackButtonEnabled NOTIFY backButtonEnabledChanged)
@@ -298,6 +302,10 @@ private:
     QString m_title;
     QString m_subtitle;
     QIcon m_icon;
+    
+    ui::animation::AnimatedIcon* m_animatedBackIcon = nullptr;
+    ui::animation::AnimatedIcon* m_animatedPaneToggleIcon = nullptr;
+
     bool m_backButtonVisible = false;
     bool m_backButtonEnabled = true;
     bool m_paneToggleButtonVisible = false;

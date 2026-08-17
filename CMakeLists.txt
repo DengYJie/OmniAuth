@@ -192,6 +192,12 @@ set(PROJECT_SOURCES
 
     src/ui/window/WindowBase.h
     src/ui/window/NavigationWindow.h
+    src/ui/animation/AnimatedVisualSource.h
+    src/ui/animation/AnimatedBackVisualSource.h
+    src/ui/animation/AnimatedGlobalNavVisualSource.h
+    src/ui/animation/AnimatedSettingsVisualSource.h
+    src/ui/animation/AnimatedIcon.h
+    src/ui/animation/AnimatedIcon.cpp
     src/ui/window/TitleBar.cpp
     src/ui/window/WindowBase.cpp
     src/ui/window/NavigationWindow.cpp

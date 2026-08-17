@@ -37,7 +37,8 @@ namespace ui::navigation {
             Kind kind,
             int depth,
             bool selectable = true,
-            QWidget* parent = nullptr);
+            QWidget* parent = nullptr,
+            std::shared_ptr<ui::animation::AnimatedVisualSource> visualSource = nullptr);
         ~NavigationTreeItem() override = default;
 
         QString tooltipText() const { return m_tooltipText; }

@@ -1,4 +1,4 @@
-﻿#include "ui/window/NavigationWindow.h"
+#include "ui/window/NavigationWindow.h"
 #include <FluentQt/Navigation.h>
 
 #include "ui/navigation/NavigationHistory.h"
@@ -150,7 +150,8 @@ void NavigationWindow::addSubInterface(
     const QString& text,
     const QString& parentRouteKey,
     ui::navigation::NavigationItemPosition pos,
-    bool selectable)
+    bool selectable,
+    std::shared_ptr<ui::animation::AnimatedVisualSource> visualSource)
 {
     if (!m_navigationView || !m_panel) return;
 
@@ -163,7 +164,9 @@ void NavigationWindow::addSubInterface(
     }
 
     m_panel->addItem(routeKey, iconGlyph, text, parentRouteKey, pos,
-        selectable && (interfaceWidget != nullptr));
+        selectable && (interfaceWidget != nullptr),
+        /*tooltip=*/QString(),
+        visualSource);
 }
 
 void NavigationWindow::switchTo(const QString& routeKey) {

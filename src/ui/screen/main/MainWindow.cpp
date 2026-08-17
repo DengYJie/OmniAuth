@@ -1,5 +1,6 @@
 #include "MainWindow.h"
 
+#include "ui/animation/AnimatedSettingsVisualSource.h"
 #include "ui/navigation/NavigationPanel.h"
 #include <FluentQt/BasicInput.h>
 #include <FluentQt/Design.h>
@@ -121,8 +122,17 @@ void MainWindow::buildNavigation() {
     addSubInterface(QStringLiteral("emailCh"), createDummyPage(QStringLiteral("邮件渠道配置")), Typography::Icons::Send, QStringLiteral("邮件渠道"), QStringLiteral("channels"));
     addSubInterface(QStringLiteral("smsCh"), createDummyPage(QStringLiteral("短信渠道配置")), Typography::Icons::Phone, QStringLiteral("短信渠道"), QStringLiteral("channels"));
 
-    // 底部: 系统设置
-    addSubInterface(QStringLiteral("settings"), createSettingsPage(this), Typography::Icons::Settings, QStringLiteral("系统设置"), QString(), ui::navigation::NavigationItemPosition::Bottom);
+    // 底部: 系统设置 (带 WinUI 3 原生齿轮微交互旋转动画)
+    addSubInterface(
+        QStringLiteral("settings"),
+        createSettingsPage(this),
+        Typography::Icons::Settings,
+        QStringLiteral("系统设置"),
+        QString(),
+        ui::navigation::NavigationItemPosition::Bottom,
+        /*selectable=*/true,
+        std::make_shared<ui::animation::AnimatedSettingsVisualSource>()
+    );
     addSubInterface(QStringLiteral("about"), createDummyPage(QStringLiteral("关于 OmniAuth")), Typography::Icons::Info, QStringLiteral("关于"), QString(), ui::navigation::NavigationItemPosition::Bottom);
 
     // 初始选中

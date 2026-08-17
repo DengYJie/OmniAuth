@@ -22,12 +22,16 @@ namespace ui::navigation {
         Kind kind,
         int depth,
         bool selectable,
-        QWidget* parent)
+        QWidget* parent,
+        std::shared_ptr<ui::animation::AnimatedVisualSource> visualSource)
         : NavigationPushButton(iconGlyph, text, /*isSelectable=*/selectable, parent)
         , m_routeKey(routeKey)
         , m_kind(kind)
         , m_tooltipText(tooltipText)
     {
+        if (visualSource) {
+            setVisualSource(visualSource);
+        }
         setNodeDepth(depth);
         setSelectable(selectable);
 

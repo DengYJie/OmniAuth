@@ -14,11 +14,13 @@
 #include <FluentQt/Navigation.h>
 #include <FluentQt/Windowing.h>
 
+#include "ui/animation/AnimatedIcon.h"
+#include "ui/animation/AnimatedBackVisualSource.h"
+#include "ui/animation/AnimatedGlobalNavVisualSource.h"
 #include "ui/navigation/NavigationFlyout.h"
 #include "ui/navigation/NavigationIndicator.h"
 #include "ui/navigation/NavigationMetrics.h"
 #include "ui/navigation/NavigationPushButton.h"
-#include "ui/navigation/NavigationSectionHeader.h"
 #include "ui/navigation/NavigationToolButton.h"
 #include "ui/navigation/NavigationTreeItem.h"
 #include "ui/navigation/NavigationTreeWidget.h"
@@ -46,16 +48,22 @@ namespace ui::navigation {
         m_headerLayout->setContentsMargins(0, s.xSmall, 0, 0);
         m_headerLayout->setSpacing(0);
 
-        m_backButton = new NavigationToolButton(Typography::Icons::Back, this);
+        m_backButton = new NavigationToolButton(QString(), this);
         m_backButton->setAccessibleItemName(QStringLiteral("Back"));
         m_backButton->setVisible(false);
         connect(m_backButton, &NavigationPushButton::clicked, this, &NavigationPanel::backRequested);
         m_headerLayout->addWidget(m_backButton, 0, Qt::AlignLeft);
 
-        m_paneToggleButton = new NavigationToolButton(Typography::Icons::GlobalNav, this);
+        m_animatedBackIcon = new ui::animation::AnimatedIcon(m_backButton);
+        m_animatedBackIcon->setSource(std::make_shared<ui::animation::AnimatedBackVisualSource>());
+
+        m_paneToggleButton = new NavigationToolButton(QString(), this);
         m_paneToggleButton->setAccessibleItemName(QStringLiteral("Toggle navigation pane"));
         connect(m_paneToggleButton, &NavigationPushButton::clicked, this, &NavigationPanel::togglePane);
         m_headerLayout->addWidget(m_paneToggleButton, 0, Qt::AlignLeft);
+
+        m_animatedPaneToggleIcon = new ui::animation::AnimatedIcon(m_paneToggleButton);
+        m_animatedPaneToggleIcon->setSource(std::make_shared<ui::animation::AnimatedGlobalNavVisualSource>());
         m_layout->addLayout(m_headerLayout);
 
         m_tree = new NavigationTreeWidget(this);
@@ -100,11 +108,12 @@ namespace ui::navigation {
 
     void NavigationPanel::addItem(const QString& routeKey, const QString& iconGlyph,
         const QString& text, const QString& parentKey,
-        NavigationItemPosition position, bool selectable, const QString& tooltip)
+        NavigationItemPosition position, bool selectable, const QString& tooltip,
+        std::shared_ptr<ui::animation::AnimatedVisualSource> visualSource)
     {
         if (!m_tree)
             return;
-        m_tree->addItem(routeKey, iconGlyph, text, parentKey, position, selectable, tooltip);
+        m_tree->addItem(routeKey, iconGlyph, text, parentKey, position, selectable, tooltip, visualSource);
     }
 
     void NavigationPanel::addSectionHeader(const QString& text)

@@ -13,6 +13,7 @@
 #include "ui/navigation/NavigationTreeWidgetBase.h"
 
 #include <QPointer>
+#include <memory>
 
 class QBoxLayout;
 class QPaintEvent;
@@ -22,6 +23,9 @@ namespace fluent::scrolling {
     class ScrollView;
 }
 
+namespace ui::animation {
+    class AnimatedVisualSource;
+}
 
 namespace ui::navigation {
 
@@ -64,12 +68,15 @@ namespace ui::navigation {
          * @param parentKey 父级分类键（为空时作为顶级节点）
          * @param position 条目归属区域（Top 主列表 / Bottom 页脚），默认 Top
          * @param selectable 是否可选中，默认 true
+         * @param tooltip 提示文本（为空时默认使用 text）
+         * @param visualSource 动态矢量动画源（可选）
          */
         void addItem(const QString& routeKey, const QString& iconGlyph,
             const QString& text, const QString& parentKey = QString(),
             NavigationItemPosition position = NavigationItemPosition::Top,
             bool selectable = true,
-            const QString& tooltip = QString());
+            const QString& tooltip = QString(),
+            std::shared_ptr<ui::animation::AnimatedVisualSource> visualSource = nullptr);
 
         /**
          * @brief 添加分区标题

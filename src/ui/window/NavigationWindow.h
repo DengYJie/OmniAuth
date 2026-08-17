@@ -1,9 +1,15 @@
-#pragma once
+﻿#pragma once
 
 #include "ui/navigation/NavigationMetrics.h"
 #include "WindowBase.h"
 #include <QHash>
 #include <QString>
+
+#include <memory>
+
+namespace ui::animation {
+    class AnimatedVisualSource;
+}
 
 namespace ui::navigation {
     class NavigationPanel;
@@ -23,6 +29,8 @@ class NavigationWindow : public WindowBase {
 public:
     explicit NavigationWindow(QWidget* parent = nullptr);
     ~NavigationWindow() override;
+
+    ui::navigation::NavigationPanel* navigationPanel() const { return m_panel; }
 
     /**
      * @brief 添加分区小标题
@@ -48,6 +56,7 @@ public:
      * @param parentRouteKey 父级分类路由标识（为空时作为顶级节点）
      * @param pos 归属区域（Top / Bottom）
      * @param selectable 是否可被选中
+     * @param visualSource 动态矢量动画源（可选）
      */
     void addSubInterface(
         const QString& routeKey,
@@ -56,7 +65,8 @@ public:
         const QString& text,
         const QString& parentRouteKey = QString(),
         ui::navigation::NavigationItemPosition pos = ui::navigation::NavigationItemPosition::Top,
-        bool selectable = true
+        bool selectable = true,
+        std::shared_ptr<ui::animation::AnimatedVisualSource> visualSource = nullptr
     );
 
     /**

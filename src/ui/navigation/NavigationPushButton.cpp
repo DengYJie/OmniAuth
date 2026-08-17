@@ -1,7 +1,10 @@
 #include "ui/navigation/NavigationPushButton.h"
 #include <FluentQt/Design.h>
 #include <QPainter>
+#include <QResizeEvent>
 
+#include "ui/animation/AnimatedIcon.h"
+#include "ui/animation/AnimatedVisualSource.h"
 #include "ui/navigation/NavigationMetrics.h"
 
 namespace ui::navigation {
@@ -30,9 +33,42 @@ namespace ui::navigation {
         update();
     }
 
+    void NavigationPushButton::setVisualSource(std::shared_ptr<ui::animation::AnimatedVisualSource> source) {
+        m_visualSource = source;
+        if (m_visualSource) {
+            if (!m_animatedIcon) {
+                m_animatedIcon = new ui::animation::AnimatedIcon(this);
+                m_animatedIcon->setAutoFillParent(false);
+            }
+            m_animatedIcon->setSource(m_visualSource);
+            m_animatedIcon->show();
+            updateIconGeometry();
+        } else {
+            if (m_animatedIcon) {
+                m_animatedIcon->hide();
+            }
+        }
+        update();
+    }
+
+    void NavigationPushButton::updateIconGeometry() {
+        if (m_animatedIcon && m_visualSource) {
+            const int s = m_iconSize;
+            const int x = iconDrawX();
+            const int y = (height() - s) / 2;
+            m_animatedIcon->setGeometry(x, y, s, s);
+        }
+    }
+
+    void NavigationPushButton::resizeEvent(QResizeEvent* event) {
+        NavigationWidget::resizeEvent(event);
+        updateIconGeometry();
+    }
+
     void NavigationPushButton::setIconSize(int size) {
         if (m_iconSize == size) return;
         m_iconSize = size;
+        updateIconGeometry();
         updateGeometry();
         update();
     }
@@ -113,7 +149,9 @@ namespace ui::navigation {
             painter.drawRoundedRect(itemRect, radius, radius);
         }
 
-        if (!m_iconGlyph.isEmpty()) {
+        updateIconGeometry();
+
+        if (!m_visualSource && !m_iconGlyph.isEmpty()) {
             painter.setFont(Typography::Icons::font(m_iconSize));
             painter.setPen(m_isSelected ? colors.textPrimary : colors.textSecondary);
             const QString glyph = Typography::Icons::glyphForSize(m_iconGlyph, m_iconSize);

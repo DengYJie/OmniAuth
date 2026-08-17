@@ -102,7 +102,8 @@ namespace ui::navigation {
 
     void NavigationTreeWidget::addItem(const QString& routeKey, const QString& iconGlyph,
         const QString& text, const QString& parentKey,
-        NavigationItemPosition position, bool selectable, const QString& tooltip)
+        NavigationItemPosition position, bool selectable, const QString& tooltip,
+        std::shared_ptr<ui::animation::AnimatedVisualSource> visualSource)
     {
         auto* node = new NavigationTreeWidget(m_root);
         node->m_routeKey = routeKey;
@@ -117,7 +118,7 @@ namespace ui::navigation {
         const int depth = node->m_parentNode ? node->m_parentNode->m_itemWidget->nodeDepth() + 1 : 0;
         const QString actualTooltip = tooltip.isEmpty() ? text : tooltip;
         auto* item = new NavigationTreeItem(routeKey, iconGlyph, text, actualTooltip,
-            NavigationTreeItem::Kind::Leaf, depth, selectable, nullptr);
+            NavigationTreeItem::Kind::Leaf, depth, selectable, nullptr, visualSource);
         item->setOrientation(m_orientation);
         item->setExpandProgress(m_expandProgress);
         item->setItemPosition(position);

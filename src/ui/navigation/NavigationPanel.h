@@ -13,8 +13,15 @@
 #include "ui/navigation/NavigationFocusHost.h"
 #include "ui/navigation/NavigationMetrics.h"
 
+#include <memory>
+
 class QPaintEvent;
 class QShowEvent;
+
+namespace ui::animation {
+    class AnimatedIcon;
+    class AnimatedVisualSource;
+}
 
 namespace ui::navigation {
 
@@ -52,12 +59,15 @@ namespace ui::navigation {
          * @param parentKey 父级分类标识，为空时作为顶级节点
          * @param position 条目归属区域（Top 主列表 / Bottom 页脚），默认 Top
          * @param selectable 是否可选中，默认 true
+         * @param tooltip 提示文本（为空时默认使用 text）
+         * @param visualSource 动态矢量动画源（可选）
          */
         void addItem(const QString& routeKey, const QString& iconGlyph,
             const QString& text, const QString& parentKey = QString(),
             NavigationItemPosition position = NavigationItemPosition::Top,
             bool selectable = true,
-            const QString& tooltip = QString());
+            const QString& tooltip = QString(),
+            std::shared_ptr<ui::animation::AnimatedVisualSource> visualSource = nullptr);
 
         /**
          * @brief 添加分区标题
@@ -305,7 +315,9 @@ namespace ui::navigation {
         QBoxLayout* m_layout = nullptr;
         QBoxLayout* m_headerLayout = nullptr;
         NavigationToolButton* m_backButton = nullptr;
+        ui::animation::AnimatedIcon* m_animatedBackIcon = nullptr;
         NavigationToolButton* m_paneToggleButton = nullptr;
+        ui::animation::AnimatedIcon* m_animatedPaneToggleIcon = nullptr;
         NavigationTreeWidget* m_tree = nullptr;
         NavigationIndicator* m_indicator = nullptr;
         QWidget* m_paneFooterContainer = nullptr;
