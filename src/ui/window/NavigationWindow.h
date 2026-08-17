@@ -1,18 +1,18 @@
 #pragma once
 
-#include "WindowBase.h"
 #include "ui/navigation/NavigationMetrics.h"
+#include "WindowBase.h"
 #include <QHash>
 #include <QString>
 
 namespace ui::navigation {
-class NavigationPanel;
-class NavigationIndicator;
-class NavigationWidget;
+    class NavigationPanel;
+    class NavigationIndicator;
+    class NavigationWidget;
 }
 
 namespace fluent::navigation {
-class NavigationView;
+    class NavigationView;
 }
 
 
@@ -23,15 +23,31 @@ public:
     explicit NavigationWindow(QWidget* parent = nullptr);
     ~NavigationWindow() override;
 
-    // Adds a navigation section header
+    /**
+     * @brief 添加分区小标题
+     * @param text 标题文本
+     */
     void addSectionHeader(const QString& text);
 
-    // Adds a custom navigation widget
+    /**
+     * @brief 向导航栏添加自定义部件
+     * @param widget 导航部件指针
+     * @param position 归属区域（Top 顶部 / Bottom 底部）
+     */
     void addWidget(ui::navigation::NavigationWidget* widget,
-                   ui::navigation::NavigationItemPosition position =
-                       ui::navigation::NavigationItemPosition::Top);
+        ui::navigation::NavigationItemPosition position =
+        ui::navigation::NavigationItemPosition::Top);
 
-    // Adds a sub-interface (page) and its navigation item
+    /**
+     * @brief 注册子界面及对应的导航路由项
+     * @param routeKey 唯一路由标识
+     * @param interfaceWidget 页面部件指针（为 nullptr 时仅作为分类菜单）
+     * @param iconGlyph 图标字形
+     * @param text 显示文本
+     * @param parentRouteKey 父级分类路由标识（为空时作为顶级节点）
+     * @param pos 归属区域（Top / Bottom）
+     * @param selectable 是否可被选中
+     */
     void addSubInterface(
         const QString& routeKey,
         QWidget* interfaceWidget,
@@ -42,13 +58,34 @@ public:
         bool selectable = true
     );
 
-    // Switches the current page
+    /**
+     * @brief 切换当前显示的子页面
+     * @param routeKey 目标路由标识
+     */
     void switchTo(const QString& routeKey);
 
-    // Sets the user info card (avatar) at the bottom
-    void setUserInfoCard(QWidget* cardWidget);
+    /**
+     * @brief 设置底部固定槽位部件（对标 WinUI 3 PaneFooter）
+     * @param footerWidget 底部槽位部件指针（继承自 NavigationWidget）
+     */
+    void setPaneFooter(ui::navigation::NavigationWidget* footerWidget);
 
+    /**
+     * @brief 获取当前挂载的底部槽位部件
+     * @return 底部部件指针
+     */
+    ui::navigation::NavigationWidget* paneFooter() const;
+
+    /**
+     * @brief 获取底层导航面板实例
+     * @return NavigationPanel 指针
+     */
     ui::navigation::NavigationPanel* panel() const { return m_panel; }
+
+    /**
+     * @brief 获取 Fluent 原生导航视图组件
+     * @return NavigationView 指针
+     */
     fluent::navigation::NavigationView* navigationView() const { return m_navigationView; }
 
 protected:
@@ -58,8 +95,6 @@ protected:
     ui::navigation::NavigationPanel* m_panel = nullptr;
     fluent::navigation::NavigationView* m_navigationView = nullptr;
 
-    // Maps routeKey to page index in StackContentHost
     QHash<QString, int> m_routeToIndexMap;
-    // currentIndexChanged 只携带 index，需反查 routeKey，故维护反向表避免 O(n) 遍历
     QHash<int, QString> m_indexToRouteMap;
 };

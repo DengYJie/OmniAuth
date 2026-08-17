@@ -90,12 +90,12 @@ namespace ui::navigation {
                     showOverflowMenu(anchorWidget, entries);
             });
 
-        m_userCardContainer = new QWidget(this);
-        m_userCardLayout = new QBoxLayout(QBoxLayout::TopToBottom, m_userCardContainer);
-        m_userCardLayout->setContentsMargins(0, 0, 0, 0);
-        m_userCardLayout->setSpacing(0);
-        m_userCardContainer->hide();
-        m_layout->addWidget(m_userCardContainer);
+        m_paneFooterContainer = new QWidget(this);
+        m_paneFooterLayout = new QBoxLayout(QBoxLayout::TopToBottom, m_paneFooterContainer);
+        m_paneFooterLayout->setContentsMargins(0, 0, 0, 0);
+        m_paneFooterLayout->setSpacing(0);
+        m_paneFooterContainer->hide();
+        m_layout->addWidget(m_paneFooterContainer);
     }
 
     void NavigationPanel::addItem(const QString& routeKey, const QString& iconGlyph,
@@ -144,12 +144,28 @@ namespace ui::navigation {
         return m_tree ? m_tree->currentRouteKey() : QString();
     }
 
-    void NavigationPanel::setUserInfoCard(NavigationWidget* cardWidget)
+    void NavigationPanel::setPaneFooter(NavigationWidget* footerWidget)
     {
-        if (!cardWidget || !m_userCardLayout)
+        if (m_paneFooter == footerWidget)
             return;
-        m_userCardLayout->addWidget(cardWidget);
-        m_userCardContainer->show();
+
+        if (m_paneFooter) {
+            m_paneFooterLayout->removeWidget(m_paneFooter);
+            m_paneFooter->setParent(nullptr);
+        }
+
+        m_paneFooter = footerWidget;
+
+        if (m_paneFooter) {
+            m_paneFooter->setItemPosition(NavigationItemPosition::Bottom);
+            m_paneFooter->setOrientation(m_orientation);
+            m_paneFooter->setCompacted(m_isCompacted);
+            m_paneFooter->setExpandProgress(m_expandProgress);
+            m_paneFooterLayout->addWidget(m_paneFooter);
+            m_paneFooterContainer->show();
+        } else {
+            m_paneFooterContainer->hide();
+        }
         updateGeometry();
     }
 
@@ -220,6 +236,8 @@ namespace ui::navigation {
             m_paneToggleButton->setCompacted(compacted);
         if (m_backButton)
             m_backButton->setCompacted(compacted);
+        if (m_paneFooter)
+            m_paneFooter->setCompacted(compacted);
 
         refreshIndicatorVisuals();
 
@@ -249,6 +267,8 @@ namespace ui::navigation {
         m_expandProgress = qBound(0.0f, progress, 1.0f);
         if (m_tree)
             m_tree->setExpandProgress(m_expandProgress);
+        if (m_paneFooter)
+            m_paneFooter->setExpandProgress(m_expandProgress);
 
         // 完全展开 (>= 0.999) 或完全收起 (<= 0.001) 时，直接重算 visual proxy 无动画更新指示条
         if ((m_expandProgress <= 0.001f && oldP > 0.001f) ||
@@ -398,7 +418,7 @@ namespace ui::navigation {
 
         m_layout->setDirection(direction);
         m_headerLayout->setDirection(direction);
-        m_userCardLayout->setDirection(direction);
+        m_paneFooterLayout->setDirection(direction);
 
         const auto s = themeSpacing();
         if (orientation == Orientation::Horizontal) {
@@ -413,7 +433,7 @@ namespace ui::navigation {
             // Horizontal 模式：外层布局边距清零，使导航项占满顶栏 48px 高度
             m_layout->setContentsMargins(0, 0, 0, 0);
             m_headerLayout->setContentsMargins(s.small, 0, 0, 0);
-            // userCard 靠右：在横向布局末尾添加伸缩占位
+            // paneFooter 靠右：在横向布局末尾添加伸缩占位
             m_layout->setStretch(2, 0);
         }
         else {
@@ -427,6 +447,9 @@ namespace ui::navigation {
 
         if (m_tree) {
             m_tree->setOrientation(orientation);
+        }
+        if (m_paneFooter) {
+            m_paneFooter->setOrientation(orientation);
         }
         if (m_indicator) {
             m_indicator->setOrientation(orientation);

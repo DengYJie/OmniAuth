@@ -152,11 +152,13 @@ void NavigationWindow::switchTo(const QString& routeKey) {
     contentHost->setCurrentIndex(targetIndex, direction, true);
 }
 
-void NavigationWindow::setUserInfoCard(QWidget* cardWidget) {
-    if (!cardWidget || !m_panel) return;
-
-    if (auto* navWidget = qobject_cast<ui::navigation::NavigationWidget*>(cardWidget)) {
-        m_panel->setUserInfoCard(navWidget);
-    }
+void NavigationWindow::setPaneFooter(ui::navigation::NavigationWidget* footerWidget) {
+    if (!m_panel) return;
+    m_panel->setPaneFooter(footerWidget);
 }
+
+ui::navigation::NavigationWidget* NavigationWindow::paneFooter() const {
+    return m_panel ? m_panel->paneFooter() : nullptr;
+}
+
 

@@ -76,13 +76,29 @@ namespace ui::navigation {
         /**
          * @brief 设置当前激活路由
          * @param routeKey 目标路由标识
-         * @param animated 是否启用指示条平滑滑行动画
          */
         void setCurrentItem(const QString& routeKey);
+
+        /**
+         * @brief 获取当前激活路由标识
+         * @return 当前路由标识字符串
+         */
         QString currentRouteKey() const;
 
         /**
-         * @brief 编程式展开/收起指定分类（紧凑模式下忽略）。
+         * @brief 设置底部固定槽位部件（对标 WinUI 3 PaneFooter）
+         * @param footerWidget 底部槽位部件指针（继承自 NavigationWidget，可感知 Compact/ExpandProgress/Orientation）
+         */
+        void setPaneFooter(NavigationWidget* footerWidget);
+
+        /**
+         * @brief 获取当前挂载的底部槽位部件
+         * @return 底部槽位部件指针
+         */
+        NavigationWidget* paneFooter() const { return m_paneFooter; }
+
+        /**
+         * @brief 编程式展开/收起指定分类（紧凑模式下忽略）
          * @param routeKey 分类节点路由键
          * @param expanded 是否展开
          * @param animated 是否启用折叠高度过渡动画
@@ -90,49 +106,166 @@ namespace ui::navigation {
         void setCategoryExpanded(const QString& routeKey, bool expanded, bool animated = true);
 
         /**
-         * @brief 设置底部固定用户卡片部件
-         * @param cardWidget 用户信息卡片部件指针
+         * @brief 获取导航选中指示条实例
+         * @return 指示条指针
          */
-        void setUserInfoCard(NavigationWidget* cardWidget);
-
         NavigationIndicator* indicator() const { return m_indicator; }
+
+        /**
+         * @brief 获取导航树部件实例
+         * @return 导航树指针
+         */
         NavigationTreeWidget* tree() const { return m_tree; }
+
+        /**
+         * @brief 获取返回按钮实例
+         * @return 返回按钮指针
+         */
         NavigationToolButton* backButton() const { return m_backButton; }
+
+        /**
+         * @brief 获取侧边栏展开/折叠汉堡按钮实例
+         * @return 汉堡按钮指针
+         */
         NavigationToolButton* paneToggleButton() const { return m_paneToggleButton; }
 
+        /**
+         * @brief 判断返回按钮是否可见
+         * @return true 为可见
+         */
         bool isBackButtonVisible() const;
+
+        /**
+         * @brief 设置返回按钮可见性
+         * @param visible 是否可见
+         */
         void setBackButtonVisible(bool visible);
 
+        /**
+         * @brief 判断返回按钮是否可用
+         * @return true 为可用
+         */
         bool isBackEnabled() const;
+
+        /**
+         * @brief 设置返回按钮可用性
+         * @param enabled 是否可用
+         */
         void setBackEnabled(bool enabled);
 
+        /**
+         * @brief 判断汉堡按钮是否可见
+         * @return true 为可见
+         */
         bool isPaneToggleButtonVisible() const;
+
+        /**
+         * @brief 设置汉堡按钮可见性
+         * @param visible 是否可见
+         */
         void setPaneToggleButtonVisible(bool visible);
 
+        /**
+         * @brief 判断汉堡按钮是否被显式隐藏
+         * @return true 为被显式隐藏
+         */
+        bool isPaneToggleExplicitlyHidden() const { return m_paneToggleExplicitlyHidden; }
+
+        /**
+         * @brief 设置汉堡按钮是否被显式隐藏
+         * @param hidden 是否隐藏
+         */
+        void setPaneToggleExplicitlyHidden(bool hidden);
+
+        /**
+         * @brief 判断背景表面是否可见（抽屉浮层模式下透出毛玻璃）
+         * @return true 为表面可见
+         */
+        bool isSurfaceVisible() const { return m_surfaceVisible; }
+
+        /**
+         * @brief 判断当前是否处于紧凑图标列模式 (48px)
+         * @return true 为紧凑模式
+         */
         bool isCompacted() const { return m_isCompacted; }
+
+        /**
+         * @brief 设置是否处于紧凑图标列模式
+         * @param compacted 是否紧凑
+         */
         void setCompacted(bool compacted);
 
+        /**
+         * @brief 判断是否启用“焦点跟随选中”模式
+         * @return true 为焦点跟随
+         */
         bool selectionFollowsFocus() const;
+
+        /**
+         * @brief 设置是否启用“焦点跟随选中”模式
+         * @param follows 是否跟随
+         */
         void setSelectionFollowsFocus(bool follows);
 
-        void setOrientation(Orientation orientation);
-        Orientation orientation() const { return m_orientation; }
+        /**
+         * @brief 刷新指示条几何位置（公共接口，供树节点几何突变时重绘调用）
+         * @param animated 是否启用几何平滑插值动画
+         */
+        void updateIndicatorVisuals(bool animated = false) { refreshIndicatorVisuals(animated); }
 
+        /**
+         * @brief 获取指定路由对应的可视化部件或浮层代理部件
+         * @param routeKey 路由键
+         * @return 对应的部件指针
+         */
+        QWidget* visualWidgetForRoute(const QString& routeKey) const;
+
+        /**
+         * @brief 切换侧边栏展开/收起状态
+         */
         void togglePane();
 
-        void moveFocusBy(int delta) override;
+        /**
+         * @brief 设置导航栏排版方向（水平/垂直）
+         * @param orientation 排版方向
+         */
+        void setOrientation(Orientation orientation);
 
-        QSize sizeHint() const override;
+        /**
+         * @brief 获取当前排版方向
+         * @return 排版方向枚举
+         */
+        Orientation orientation() const { return m_orientation; }
 
+        /**
+         * @brief 设置展开/折叠插值进度
+         * @param progress 0.0 为 Compact (48px), 1.0 为 Expanded (240px)
+         */
         void setExpandProgress(float progress);
+
+        /**
+         * @brief 获取当前展开/折叠插值进度
+         * @return 进度浮点数 (0.0 ~ 1.0)
+         */
         float expandProgress() const { return m_expandProgress; }
 
+        /**
+         * @brief 向上或向下移动焦点
+         * @param delta 步长，-1 为上/左，+1 为下/右
+         */
+        void moveFocusBy(int delta) override;
+
+        /**
+         * @brief 获取部件建议尺寸
+         * @return 建议尺寸
+         */
+        QSize sizeHint() const override;
 
     signals:
         /// 切页的唯一驱动源，由树统一广播
         void itemSelected(const QString& routeKey);
         void backRequested();
-        void compactedChanged(bool compacted);
+        void compactedChanged(bool isCompacted);
         void indicatorOwnerChanged(NavigationTreeItem* item, bool isOwner);
 
     protected:
@@ -176,8 +309,9 @@ namespace ui::navigation {
         NavigationToolButton* m_paneToggleButton = nullptr;
         NavigationTreeWidget* m_tree = nullptr;
         NavigationIndicator* m_indicator = nullptr;
-        QWidget* m_userCardContainer = nullptr;
-        QBoxLayout* m_userCardLayout = nullptr;
+        QWidget* m_paneFooterContainer = nullptr;
+        QBoxLayout* m_paneFooterLayout = nullptr;
+        QPointer<NavigationWidget> m_paneFooter;
         QPointer<NavigationTreeItem> m_indicatorOwner;
         QPointer<NavigationTreeItem> m_visualIndicatorOwner;
 
