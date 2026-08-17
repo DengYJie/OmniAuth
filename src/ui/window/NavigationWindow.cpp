@@ -1,6 +1,7 @@
-#include "ui/window/NavigationWindow.h"
+﻿#include "ui/window/NavigationWindow.h"
 #include <FluentQt/Navigation.h>
 
+#include "ui/navigation/NavigationHistory.h"
 #include "ui/navigation/NavigationIndicator.h"
 #include "ui/navigation/NavigationPanel.h"
 #include "ui/navigation/NavigationToolButton.h"
@@ -19,6 +20,8 @@ void NavigationWindow::initNavigation() {
     m_navigationView = new fluent::navigation::NavigationView(this);
     m_navigationView->setDisplayMode(fluent::navigation::NavigationView::DisplayMode::Auto);
 
+    m_history = new ui::navigation::NavigationHistory(this);
+
     m_panel = new ui::navigation::NavigationPanel(m_navigationView);
     m_navigationView->setMainChromeWidget(m_panel);
 
@@ -26,7 +29,6 @@ void NavigationWindow::initNavigation() {
     m_panel->setPaneToggleButtonVisible(false);
     m_panel->setBackButtonVisible(false);
 
-    // 同步 DisplayMode 变化至 Panel 的排列方向、NavigationView 的 Pane 展开状态、转场效果及 TitleBar
     auto syncDisplayMode = [this](fluent::navigation::NavigationView::DisplayMode mode) {
         using DisplayMode = fluent::navigation::NavigationView::DisplayMode;
         using StackContentHost = fluent::navigation::StackContentHost;
@@ -37,23 +39,20 @@ void NavigationWindow::initNavigation() {
         if (m_navigationView) {
             m_navigationView->setPaneOpen(mode == DisplayMode::Left || top);
             if (auto* host = m_navigationView->contentHost()) {
-                // Top 顶栏模式：导航项横向分布，页面切换走水平滑动（SlideNavigationTransitionInfo）；
-                // Left 侧边栏模式：页面切换走 Entrance（SlideFromBottom 垂直微浮淡入），避免内容与侧边栏横向碰撞
                 host->setTransitionEffect(
                     top ? StackContentHost::TransitionEffect::SlideFromLeft
-                        : StackContentHost::TransitionEffect::SlideFromBottom);
+                    : StackContentHost::TransitionEffect::SlideFromBottom);
             }
         }
         if (titleBar()) {
             titleBar()->setPaneToggleButtonVisible(!top);
         }
-    };
+        };
 
     connect(m_navigationView, &fluent::navigation::NavigationView::effectiveDisplayModeChanged,
         this, syncDisplayMode);
     syncDisplayMode(m_navigationView->effectiveDisplayMode());
 
-    // 同步 Pane 展开/收起状态至 Panel 的紧凑（折叠）模式
     connect(m_navigationView, &fluent::navigation::NavigationView::paneOpenChanged,
         this, [this](bool open) {
             if (m_panel) {
@@ -61,7 +60,6 @@ void NavigationWindow::initNavigation() {
             }
         });
 
-    // Panel 的返回按钮逻辑：若在 Minimal/Compact 模式下抽屉展开，则返回先收起抽屉
     connect(m_panel, &ui::navigation::NavigationPanel::backRequested, this, [this]() {
         if (m_navigationView) {
             using DisplayMode = fluent::navigation::NavigationView::DisplayMode;
@@ -69,11 +67,18 @@ void NavigationWindow::initNavigation() {
             if (m_navigationView->isPaneOpen()
                 && (mode == DisplayMode::LeftCompact || mode == DisplayMode::LeftMinimal)) {
                 m_navigationView->setPaneOpen(false);
+                return;
             }
+        }
+
+        if (m_history && m_history->canGoBack()) {
+            m_isNavigatingHistory = true;
+            QString prevRoute = m_history->goBack();
+            switchTo(prevRoute);
+            m_isNavigatingHistory = false;
         }
         });
 
-    // Panel 自带的汉堡菜单按钮点击联动
     if (m_panel->paneToggleButton()) {
         connect(m_panel->paneToggleButton(), &ui::navigation::NavigationToolButton::clicked, this, [this]() {
             if (m_navigationView) {
@@ -82,9 +87,22 @@ void NavigationWindow::initNavigation() {
             });
     }
 
-    // 启用 TitleBar 中的导航控件
     if (titleBar()) {
-        titleBar()->setBackButtonVisible(false);
+        bool canGoBack = m_history && m_history->canGoBack();
+        titleBar()->setBackButtonVisible(canGoBack);
+        titleBar()->setBackButtonEnabled(true);
+
+        connect(m_history, &ui::navigation::NavigationHistory::canGoBackChanged,
+            titleBar(), &ui::window::TitleBar::setBackButtonVisible);
+
+        connect(titleBar(), &ui::window::TitleBar::backButtonClicked, this, [this]() {
+            if (m_history && m_history->canGoBack()) {
+                m_isNavigatingHistory = true;
+                QString prevRoute = m_history->goBack();
+                switchTo(prevRoute);
+                m_isNavigatingHistory = false;
+            }
+            });
 
         connect(titleBar(), &ui::window::TitleBar::paneToggleButtonClicked, this, [this]() {
             if (m_navigationView) {
@@ -93,7 +111,6 @@ void NavigationWindow::initNavigation() {
             });
     }
 
-    // 初始状态同步
     syncDisplayMode(m_navigationView->effectiveDisplayMode());
     if (m_panel) {
         m_panel->setCompacted(!m_navigationView->isPaneOpen());
@@ -151,6 +168,10 @@ void NavigationWindow::addSubInterface(
 
 void NavigationWindow::switchTo(const QString& routeKey) {
     if (!m_routeToIndexMap.contains(routeKey) || !m_navigationView) return;
+
+    if (!m_isNavigatingHistory && m_history) {
+        m_history->push(routeKey);
+    }
 
     auto* contentHost = m_navigationView->contentHost();
     const int targetIndex = m_routeToIndexMap.value(routeKey);

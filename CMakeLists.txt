@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.16)
 project(OmniAuth LANGUAGES CXX)
 
 include(qt.cmake)
@@ -220,6 +220,8 @@ set(PROJECT_SOURCES
     src/ui/navigation/NavigationFlyout.cpp
     src/ui/navigation/NavigationPanel.h
     src/ui/navigation/NavigationPanel.cpp
+    src/ui/navigation/NavigationHistory.h
+    src/ui/navigation/NavigationHistory.cpp
 )
 
 qt_add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})

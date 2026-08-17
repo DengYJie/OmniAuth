@@ -9,6 +9,7 @@ namespace ui::navigation {
     class NavigationPanel;
     class NavigationIndicator;
     class NavigationWidget;
+    class NavigationHistory;
 }
 
 namespace fluent::navigation {
@@ -94,7 +95,10 @@ protected:
 protected:
     ui::navigation::NavigationPanel* m_panel = nullptr;
     fluent::navigation::NavigationView* m_navigationView = nullptr;
+    ui::navigation::NavigationHistory* m_history = nullptr;
 
     QHash<QString, int> m_routeToIndexMap;
     QHash<int, QString> m_indexToRouteMap;
+
+    bool m_isNavigatingHistory = false;
 };
