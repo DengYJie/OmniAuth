@@ -25,8 +25,8 @@ public:
     explicit NavigationIndicator(QWidget* parent = nullptr);
     ~NavigationIndicator() override = default;
 
-    Orientation orientation() const { return m_orientation; }
-    void setOrientation(Orientation orientation);
+    Qt::Orientation orientation() const { return m_orientation; }
+    void setOrientation(Qt::Orientation orientation);
 
     void setInitialPosition(const QRectF& rect);
 
@@ -92,7 +92,7 @@ private:
     mutable bool m_themeValid = false;
 
     QVariantAnimation* m_flightAnimation = nullptr;
-    Orientation m_orientation = Orientation::Vertical;
+    Qt::Orientation m_orientation = Qt::Vertical;
 
     /// 当前动画模式：Normal 标准飞行，PortalReturn 展开恢复，CrossWindowPortal 完全映射插值飞跃
     enum class AnimationMode { Normal, PortalReturn, CrossWindowPortal };

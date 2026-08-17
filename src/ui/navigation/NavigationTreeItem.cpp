@@ -122,7 +122,7 @@ namespace ui::navigation {
         }
     }
 
-    void NavigationTreeItem::setOrientation(Orientation orientation)
+    void NavigationTreeItem::setOrientation(Qt::Orientation orientation)
     {
         NavigationPushButton::setOrientation(orientation);
     }
@@ -145,7 +145,7 @@ namespace ui::navigation {
 
     float NavigationTreeItem::currentTextAlpha() const
     {
-        if (m_orientation == Orientation::Horizontal) {
+        if (m_orientation == Qt::Horizontal) {
             return 1.0f;
         }
         return NavigationPushButton::currentTextAlpha() * m_expandProgress;
@@ -153,7 +153,7 @@ namespace ui::navigation {
 
     int NavigationTreeItem::iconDrawX() const
     {
-        if (m_orientation == Orientation::Horizontal) {
+        if (m_orientation == Qt::Horizontal) {
             return NavigationPushButton::iconDrawX();
         }
         const qreal expandedLeft = kRowLeftInset + kContentStart + m_nodeDepth * themeSpacing().large * m_expandProgress;
@@ -162,7 +162,7 @@ namespace ui::navigation {
 
     int NavigationTreeItem::textRightOffset() const
     {
-        if (m_orientation == Orientation::Horizontal) {
+        if (m_orientation == Qt::Horizontal) {
             return chevronVisible() ? kTopChevronAddedWidth : 0;
         }
         return chevronVisible() ? (kChevronAreaWidth + kChevronRightInset) : 0;
@@ -176,7 +176,7 @@ namespace ui::navigation {
     QSize NavigationTreeItem::sizeHint() const
     {
         QSize baseSize = NavigationPushButton::sizeHint();
-        if (m_orientation == Orientation::Horizontal && isCategory()) {
+        if (m_orientation == Qt::Horizontal && isCategory()) {
             baseSize.rwidth() += kTopChevronAddedWidth;
         }
         return baseSize;
@@ -237,7 +237,7 @@ namespace ui::navigation {
     {
         if (!isCategory())
             return false;
-        if (m_orientation == Orientation::Horizontal)
+        if (m_orientation == Qt::Horizontal)
             return true;
         return m_expandProgress > 0.01f;
     }

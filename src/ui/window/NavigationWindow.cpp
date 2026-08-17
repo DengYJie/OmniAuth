@@ -31,8 +31,8 @@ void NavigationWindow::initNavigation() {
         using DisplayMode = fluent::navigation::NavigationView::DisplayMode;
         if (m_panel) {
             m_panel->setOrientation(mode == DisplayMode::Top
-                ? ui::navigation::Orientation::Horizontal
-                : ui::navigation::Orientation::Vertical);
+                ? Qt::Horizontal
+                : Qt::Vertical);
         }
         if (m_navigationView) {
             m_navigationView->setPaneOpen(mode == DisplayMode::Left || mode == DisplayMode::Top);

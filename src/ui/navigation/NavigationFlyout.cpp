@@ -1,4 +1,4 @@
-﻿#include "ui/navigation/NavigationFlyout.h"
+#include "ui/navigation/NavigationFlyout.h"
 
 #include <functional>
 
@@ -106,7 +106,7 @@ namespace ui::navigation {
             m_host->installEventFilter(this);
 
         m_flyoutIndicator = new NavigationIndicator(this);
-        m_flyoutIndicator->setOrientation(Orientation::Vertical);
+        m_flyoutIndicator->setOrientation(Qt::Vertical);
 
         if (rootTree) {
             connect(rootTree, &NavigationTreeWidget::itemSelected, this, [this](const QString& selectedKey) {
@@ -146,7 +146,7 @@ namespace ui::navigation {
         for (const auto& entry : entries) {
             if (entry.header) {
                 auto* header = new NavigationSectionHeader(entry.header->text(), nullptr);
-                header->setOrientation(Orientation::Vertical);
+                header->setOrientation(Qt::Vertical);
                 header->setExpandProgress(1.0f);
                 m_contentLayout->addWidget(header);
             }
@@ -182,7 +182,7 @@ namespace ui::navigation {
             depth,
             srcItem->isSelectable(),
             nullptr);
-        item->setOrientation(Orientation::Vertical);
+        item->setOrientation(Qt::Vertical);
         item->setExpandProgress(1.0f);
         item->setIconSize(srcItem->iconSize());
         item->setTreeParent(node);

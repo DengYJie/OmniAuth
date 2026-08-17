@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <QHash>
 #include <QSet>
@@ -145,8 +145,8 @@ namespace ui::navigation {
         /**
          * @brief 设置面板布局方向（Horizontal / Vertical）
          */
-        void setOrientation(Orientation orientation);
-        Orientation orientation() const { return m_orientation; }
+        void setOrientation(Qt::Orientation orientation);
+        Qt::Orientation orientation() const { return m_orientation; }
 
     private:
         /// 标记节点为 flyout 内克隆节点：点击分类时内联展开而非再弹 flyout
@@ -256,7 +256,7 @@ namespace ui::navigation {
         /// 展开终态：按折叠前快照恢复所有分类展开态
         void restoreAllCategories();
         void propagateExpandProgress(float progress);
-        void propagateOrientation(Orientation orientation);
+        void propagateOrientation(Qt::Orientation orientation);
 
         bool isSelectedUnder(NavigationTreeWidget* node) const;
         // 溢出计算（Top 模式）
@@ -281,7 +281,7 @@ namespace ui::navigation {
         QHash<QString, bool> m_savedExpandStates;
         /// 是否为 flyout 内克隆节点：分类点击走内联展开而非 flyout 模式
         bool m_inlineExpansion = false;
-        Orientation m_orientation = Orientation::Vertical;
+        Qt::Orientation m_orientation = Qt::Vertical;
         fluent::scrolling::ScrollView* m_scrollView = nullptr;
 
         // 溢出状态（Top 模式）

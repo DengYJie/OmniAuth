@@ -352,11 +352,11 @@ namespace ui::navigation {
 
     QSize NavigationPanel::sizeHint() const
     {
-        if (m_orientation == Orientation::Horizontal) {
-            int w = parentWidget() ? parentWidget()->width() : QWidget::sizeHint().width();
-            return QSize(w, kTopBarItemHeight);
+        if (m_orientation == Qt::Horizontal) {
+            return QSize(QWIDGETSIZE_MAX, kTopBarItemHeight);
         }
-        return QSize(Breakpoints::NavigationPaneExpandedWidth, QWidget::sizeHint().height());
+        const int w = m_isCompacted ? Breakpoints::NavigationPaneCompactWidth : Breakpoints::NavigationPaneExpandedWidth;
+        return QSize(w, m_layout ? m_layout->sizeHint().height() : QWidget::sizeHint().height());
     }
 
     void NavigationPanel::paintEvent(QPaintEvent* event)
@@ -378,10 +378,6 @@ namespace ui::navigation {
         QWidget::showEvent(event);
         if (m_indicator)
             m_indicator->raise();
-        // Horizontal 模式下 panel 需跟随窗口宽度，但自身未必收到 resizeEvent，故监听顶层窗口
-        if (QWidget* top = window()) {
-            top->installEventFilter(this);
-        }
 
         // 首次展示防御回退：若当前完全没有任何选中的项，自动选中树中第一个可用的项（静默秒开无动画）
         if (!m_indicatorOwner && m_tree) {
@@ -406,13 +402,13 @@ namespace ui::navigation {
         }
     }
 
-    void NavigationPanel::setOrientation(Orientation orientation)
+    void NavigationPanel::setOrientation(Qt::Orientation orientation)
     {
         if (m_orientation == orientation)
             return;
         m_orientation = orientation;
 
-        const auto direction = (orientation == Orientation::Horizontal)
+        const auto direction = (orientation == Qt::Horizontal)
             ? QBoxLayout::LeftToRight
             : QBoxLayout::TopToBottom;
 
@@ -420,16 +416,15 @@ namespace ui::navigation {
         m_headerLayout->setDirection(direction);
         m_paneFooterLayout->setDirection(direction);
 
+        // 重置尺寸约束，避免固定宽度污染外层 NavigationView 几何布局
+        setMinimumSize(0, 0);
+        setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+
         const auto s = themeSpacing();
-        if (orientation == Orientation::Horizontal) {
+        if (orientation == Qt::Horizontal) {
             m_paneToggleButton->hide();
             setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-            if (window()) {
-                setFixedWidth(window()->width());
-            }
-            else if (parentWidget()) {
-                setFixedWidth(parentWidget()->width());
-            }
+            setFixedHeight(kTopBarItemHeight);
             // Horizontal 模式：外层布局边距清零，使导航项占满顶栏 48px 高度
             m_layout->setContentsMargins(0, 0, 0, 0);
             m_headerLayout->setContentsMargins(s.small, 0, 0, 0);
@@ -440,6 +435,8 @@ namespace ui::navigation {
             if (!m_paneToggleExplicitlyHidden) {
                 m_paneToggleButton->show();
             }
+            setMaximumHeight(QWIDGETSIZE_MAX);
+            setMinimumHeight(0);
             setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
             m_layout->setContentsMargins(0, 0, 0, s.small);
             m_headerLayout->setContentsMargins(0, s.xSmall, 0, 0);
@@ -477,17 +474,6 @@ namespace ui::navigation {
         return QWidget::event(event);
     }
 
-    // Horizontal 模式下窗口缩放时跟随其宽度
-    bool NavigationPanel::eventFilter(QObject* watched, QEvent* event)
-    {
-        if (watched == window() && event->type() == QEvent::Resize) {
-            if (m_orientation == Orientation::Horizontal) {
-                setFixedWidth(static_cast<QResizeEvent*>(event)->size().width());
-            }
-        }
-        return QWidget::eventFilter(watched, event);
-    }
-
     void NavigationPanel::setSurfaceVisible(bool visible)
     {
         if (m_surfaceVisible == visible)
@@ -500,7 +486,7 @@ namespace ui::navigation {
 
     void NavigationPanel::triggerCrossWindowPortal(NavigationFlyout* flyout, QWidget* anchorWidget, NavigationTreeItem* prevOwner, NavigationTreeItem* curClone)
     {
-        if (m_orientation != Orientation::Horizontal || !m_indicator || !flyout || !curClone)
+        if (m_orientation != Qt::Horizontal || !m_indicator || !flyout || !curClone)
             return;
 
         m_flyoutCloseIntent = FlyoutCloseIntent::PortalReturn;
@@ -601,7 +587,7 @@ namespace ui::navigation {
 
         // Horizontal 模式下：若选中项属于当前分类子树，待 flyout 完全定位后触发跨窗口联合传送门
         // 须在 opened 后触发：flyout 定位/布局完成前 selectedItem 几何不准，且可能翻转（m_flippedUp）
-        if (m_orientation == Orientation::Horizontal && m_indicator && m_tree->isAncestorOf(m_tree->currentRouteKey(), categoryKey)) {
+        if (m_orientation == Qt::Horizontal && m_indicator && m_tree->isAncestorOf(m_tree->currentRouteKey(), categoryKey)) {
             connect(flyout, &NavigationFlyout::opened, this,
                 [this, flyout, anchorWidget]() {
                     if (NavigationTreeItem* curClone = flyout->cloneItemFor(m_tree->currentRouteKey())) {
@@ -612,7 +598,7 @@ namespace ui::navigation {
 
         flyout->addLightDismissPassthrough(this); // 允许侧边栏内的点击直接穿透（实现无缝切换）
 
-        if (m_orientation == Orientation::Horizontal) {
+        if (m_orientation == Qt::Horizontal) {
             // Horizontal 模式：flyout 顶部紧贴 panel 下外边缘，X 对齐锚点水平中心，向下滑入
             flyout->setPlacement(NavigationFlyout::Placement::Bottom);
             flyout->showAt(anchorWidget);
@@ -687,7 +673,7 @@ namespace ui::navigation {
             });
 
         // Horizontal 模式下：若选中项在溢出列表中，待 flyout 完全定位后触发跨窗口联合传送门
-        if (m_orientation == Orientation::Horizontal && m_indicator) {
+        if (m_orientation == Qt::Horizontal && m_indicator) {
             connect(flyout, &NavigationFlyout::opened, this,
                 [this, flyout, anchorWidget]() {
                     if (NavigationTreeItem* curClone = flyout->cloneItemFor(m_tree->currentRouteKey())) {

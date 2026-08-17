@@ -15,10 +15,10 @@ NavigationSeparator::NavigationSeparator(QWidget* parent)
     setFixedHeight(kSeparatorLeadingMargin + kSeparatorLineThickness + kSeparatorTrailingMargin);
 }
 
-void NavigationSeparator::setOrientation(Orientation orientation)
+void NavigationSeparator::setOrientation(Qt::Orientation orientation)
 {
     NavigationWidget::setOrientation(orientation);
-    if (orientation == Orientation::Horizontal) {
+    if (orientation == Qt::Horizontal) {
         setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
         // Top 模式：左留白3 + 线1 + 右留白4，撑满栏高
         setFixedSize(kSeparatorLeadingMargin + kSeparatorLineThickness + kSeparatorTrailingMargin, kTopBarItemHeight);
@@ -31,7 +31,7 @@ void NavigationSeparator::setOrientation(Orientation orientation)
 
 QSize NavigationSeparator::sizeHint() const
 {
-    if (m_orientation == Orientation::Horizontal) {
+    if (m_orientation == Qt::Horizontal) {
         return QSize(kSeparatorLeadingMargin + kSeparatorLineThickness + kSeparatorTrailingMargin, kTopBarItemHeight);
     }
     return QSize(0, kSeparatorLeadingMargin + kSeparatorLineThickness + kSeparatorTrailingMargin);
@@ -48,7 +48,7 @@ void NavigationSeparator::paintEvent(QPaintEvent* /*event*/) {
     painter.setPen(pen);
 
     // 线通栏绘制，无左右/上下缩进，仅按前侧留白定位
-    if (m_orientation == Orientation::Horizontal) {
+    if (m_orientation == Qt::Horizontal) {
         painter.drawLine(kSeparatorLeadingMargin, 0, kSeparatorLeadingMargin, height());
     } else {
         painter.drawLine(0, kSeparatorLeadingMargin, width(), kSeparatorLeadingMargin);

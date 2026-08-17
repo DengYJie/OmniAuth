@@ -28,7 +28,7 @@ public:
     void setCompacted(bool compacted) override;
 
     /// 方向切换后保持 48x48 固定尺寸（基类按行高 setFixedHeight 会破坏锁定尺寸）
-    void setOrientation(Orientation orientation) override;
+    void setOrientation(Qt::Orientation orientation) override;
 
     /// 开启后，布局重排导致的本控件位移会以隐式动画平滑过渡（对齐 WinUI overflow 按钮 200ms 规范）
     void setAnimatedMove(bool enabled);

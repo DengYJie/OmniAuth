@@ -229,13 +229,13 @@ namespace ui::navigation {
          * @brief 设置导航栏排版方向（水平/垂直）
          * @param orientation 排版方向
          */
-        void setOrientation(Orientation orientation);
+        void setOrientation(Qt::Orientation orientation);
 
         /**
          * @brief 获取当前排版方向
          * @return 排版方向枚举
          */
-        Orientation orientation() const { return m_orientation; }
+        Qt::Orientation orientation() const { return m_orientation; }
 
         /**
          * @brief 设置展开/折叠插值进度
@@ -273,7 +273,6 @@ namespace ui::navigation {
         void showEvent(QShowEvent* event) override;
         void resizeEvent(QResizeEvent* event) override;
         bool event(QEvent* event) override;
-        bool eventFilter(QObject* watched, QEvent* event) override;
 
         void onThemeUpdated() override { update(); }
 
@@ -301,7 +300,7 @@ namespace ui::navigation {
         bool m_surfaceVisible = false;
         bool m_paneToggleExplicitlyHidden = false;
         float m_expandProgress = 1.0f;
-        Orientation m_orientation = Orientation::Vertical;
+        Qt::Orientation m_orientation = Qt::Vertical;
 
         QBoxLayout* m_layout = nullptr;
         QBoxLayout* m_headerLayout = nullptr;

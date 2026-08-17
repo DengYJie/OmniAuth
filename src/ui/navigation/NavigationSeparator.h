@@ -16,7 +16,7 @@ public:
     explicit NavigationSeparator(QWidget* parent = nullptr);
     ~NavigationSeparator() override = default;
 
-    void setOrientation(Orientation orientation) override;
+    void setOrientation(Qt::Orientation orientation) override;
     QSize sizeHint() const override;
 
 protected:

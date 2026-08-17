@@ -74,7 +74,7 @@ namespace ui::navigation {
 
         m_overflowButton = new NavigationToolButton(Typography::Icons::More, this);
         m_overflowButton->setObjectName(QStringLiteral("NavigationOverflowButton"));
-        m_overflowButton->setOrientation(Orientation::Horizontal);
+        m_overflowButton->setOrientation(Qt::Horizontal);
         m_overflowButton->setAnimatedMove(true);
         m_overflowButton->hide();
         connect(m_overflowButton, &NavigationToolButton::clicked, this, [this]() {
@@ -219,7 +219,7 @@ namespace ui::navigation {
             m_headers.append(header);
 
         if (position == NavigationItemPosition::Bottom) {
-            if (m_orientation == Orientation::Vertical && !m_addingFooter) {
+            if (m_orientation == Qt::Vertical && !m_addingFooter) {
                 m_addingFooter = true;
                 auto* sep = new NavigationSeparator(this);
                 sep->setOrientation(m_orientation);
@@ -235,7 +235,7 @@ namespace ui::navigation {
             // 强行约束所有加入 m_mainLayout 的条目，禁止它们在水平方向上吞噬多余空间
             // 确保所有的剩余空间(gap)完全被末尾的 addStretch 吃掉，从而保证 overflow 按钮紧贴最后一项
             QSizePolicy sp = widget->sizePolicy();
-            sp.setHorizontalPolicy(m_orientation == Orientation::Horizontal ? QSizePolicy::Fixed : QSizePolicy::Preferred);
+            sp.setHorizontalPolicy(m_orientation == Qt::Horizontal ? QSizePolicy::Fixed : QSizePolicy::Preferred);
             widget->setSizePolicy(sp);
 
             m_mainLayout->insertWidget(insertIdx, widget);
@@ -339,7 +339,7 @@ namespace ui::navigation {
         if (!node || !node->m_itemWidget)
             return;
 
-        if (m_isCompacted || m_orientation == Orientation::Horizontal) {
+        if (m_isCompacted || m_orientation == Qt::Horizontal) {
             NavigationTreeWidget* anchor = node;
             while (anchor->m_parentNode && anchor->m_parentNode != m_root) {
                 anchor = anchor->m_parentNode;
@@ -374,7 +374,7 @@ namespace ui::navigation {
             return;
         }
 
-        if (m_orientation != Orientation::Horizontal)
+        if (m_orientation != Qt::Horizontal)
             expandAncestors(node);
 
         if (routeKey == m_currentRouteKey) {
@@ -395,7 +395,7 @@ namespace ui::navigation {
         NavigationTreeWidget* node = const_cast<NavigationTreeWidget*>(this)->nodeFor(logicalOwner->routeKey());
         if (!node || !node->m_itemWidget) return nullptr;
 
-        if (m_isCompacted || m_orientation == Orientation::Horizontal) {
+        if (m_isCompacted || m_orientation == Qt::Horizontal) {
             // 紧凑模式 (Vertical Compact) 或 Horizontal 模式：子节点绝不可能直接出现在主栏位中，
             // 必须追溯到其在主栏位的根节点（真实顶层控件）。
             NavigationTreeWidget* rootNode = node;
@@ -403,14 +403,14 @@ namespace ui::navigation {
                 rootNode = rootNode->m_parentNode;
             }
             if (rootNode && rootNode->m_itemWidget) {
-                if (m_orientation == Orientation::Horizontal && isCategoryActive(rootNode->routeKey())) {
+                if (m_orientation == Qt::Horizontal && isCategoryActive(rootNode->routeKey())) {
                     // 若选中项是子节点，且分类展开，指示条进入 flyout，宿主栏不绘制；
                     // 但若选中项就是顶级分类自身，即使 flyout 展开，顶级分类项也应保有指示条
                     if (node != rootNode) {
                         return nullptr;
                     }
                 }
-                if (m_orientation == Orientation::Horizontal) {
+                if (m_orientation == Qt::Horizontal) {
                     if (!m_overflowNodes.contains(rootNode) && !rootNode->m_itemWidget->isHidden()) {
                         return rootNode->item();
                     }
@@ -641,7 +641,7 @@ namespace ui::navigation {
                 header->setExpandProgress(progress);
     }
 
-    void NavigationTreeWidget::propagateOrientation(Orientation orientation)
+    void NavigationTreeWidget::propagateOrientation(Qt::Orientation orientation)
     {
         // 沿逻辑树一次递归同时完成：itemWidget 设方向 + 子容器显隐/最大尺寸
         std::function<void(NavigationTreeWidget*)> visit = [&](NavigationTreeWidget* node) {
@@ -650,7 +650,7 @@ namespace ui::navigation {
             if (node->m_itemWidget) {
                 node->m_itemWidget->setOrientation(orientation);
                 QSizePolicy sp = node->m_itemWidget->sizePolicy();
-                if (orientation == Orientation::Vertical) {
+                if (orientation == Qt::Vertical) {
                     node->m_itemWidget->setVisible(true);
                     sp.setHorizontalPolicy(QSizePolicy::Preferred);
                 }
@@ -660,7 +660,7 @@ namespace ui::navigation {
                 node->m_itemWidget->setSizePolicy(sp);
             }
             if (node->m_childrenContainer) {
-                if (orientation == Orientation::Horizontal) {
+                if (orientation == Qt::Horizontal) {
                     node->m_childrenContainer->hide();
                     node->m_childrenContainer->setMaximumSize(0, 0);
                 }
@@ -680,14 +680,14 @@ namespace ui::navigation {
             header->setVisible(true);
 
             QSizePolicy sp = header->sizePolicy();
-            sp.setHorizontalPolicy(orientation == Orientation::Vertical ? QSizePolicy::Preferred : QSizePolicy::Fixed);
+            sp.setHorizontalPolicy(orientation == Qt::Vertical ? QSizePolicy::Preferred : QSizePolicy::Fixed);
             header->setSizePolicy(sp);
         }
     }
 
     void NavigationTreeWidget::setExpandProgress(float progress)
     {
-        if (m_orientation == Orientation::Horizontal)
+        if (m_orientation == Qt::Horizontal)
             return;
 
         const float p = qBound(0.0f, progress, 1.0f);
@@ -817,7 +817,7 @@ namespace ui::navigation {
     {
         QWidget::showEvent(event);
         QTimer::singleShot(0, this, [this]() {
-            if (m_orientation == Orientation::Horizontal)
+            if (m_orientation == Qt::Horizontal)
                 computeOverflow();
             });
     }
@@ -825,19 +825,19 @@ namespace ui::navigation {
     void NavigationTreeWidget::resizeEvent(QResizeEvent* event)
     {
         QWidget::resizeEvent(event);
-        if (m_orientation == Orientation::Horizontal
+        if (m_orientation == Qt::Horizontal
             && event->size().width() != event->oldSize().width()) {
             computeOverflow();
         }
     }
 
-    void NavigationTreeWidget::setOrientation(Orientation orientation)
+    void NavigationTreeWidget::setOrientation(Qt::Orientation orientation)
     {
         if (m_orientation == orientation)
             return;
         m_orientation = orientation;
 
-        const auto direction = (orientation == Orientation::Horizontal)
+        const auto direction = (orientation == Qt::Horizontal)
             ? QBoxLayout::LeftToRight
             : QBoxLayout::TopToBottom;
 
@@ -846,7 +846,7 @@ namespace ui::navigation {
         m_footerLayout->setDirection(direction);
 
         if (m_scrollView) {
-            if (orientation == Orientation::Horizontal) {
+            if (orientation == Qt::Horizontal) {
                 m_scrollView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
                 m_scrollView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
                 m_scrollView->setHorizontalScrollBarVisibility(fluent::scrolling::ScrollView::ScrollBarVisibility::Hidden);
@@ -864,7 +864,7 @@ namespace ui::navigation {
 
         propagateOrientation(orientation);
 
-        if (orientation == Orientation::Horizontal) {
+        if (orientation == Qt::Horizontal) {
             computeOverflow();
         }
         else {
@@ -884,7 +884,7 @@ namespace ui::navigation {
 
     bool NavigationTreeWidget::computeOverflow(bool animated)
     {
-        if (m_updatingOverflow || m_orientation != Orientation::Horizontal)
+        if (m_updatingOverflow || m_orientation != Qt::Horizontal)
             return false;
         m_updatingOverflow = true;
 

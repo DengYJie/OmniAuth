@@ -23,7 +23,7 @@ void NavigationSectionHeader::setExpandProgress(float progress)
     updateCompactHeight();
 }
 
-void NavigationSectionHeader::setOrientation(Orientation orientation)
+void NavigationSectionHeader::setOrientation(Qt::Orientation orientation)
 {
     NavigationWidget::setOrientation(orientation);
     // 基类按通用行高设固定高度，header 需按自身规范（Vertical=40 折叠缩放 / Top=48）重算
@@ -33,7 +33,7 @@ void NavigationSectionHeader::setOrientation(Orientation orientation)
 
 QSize NavigationSectionHeader::sizeHint() const
 {
-    if (m_orientation == Orientation::Horizontal) {
+    if (m_orientation == Qt::Horizontal) {
         QFont f = themeFont(Typography::FontRole::BodyStrong).toQFont();
         QFontMetrics fm(f);
         // 文字宽度 + 两侧内边距
@@ -45,7 +45,7 @@ QSize NavigationSectionHeader::sizeHint() const
 void NavigationSectionHeader::updateCompactHeight()
 {
     // Top 模式（Horizontal）高度对齐栏高
-    if (m_orientation == Orientation::Horizontal) {
+    if (m_orientation == Qt::Horizontal) {
         setFixedHeight(kTopBarItemHeight);
         return;
     }
@@ -76,7 +76,7 @@ void NavigationSectionHeader::paintEvent(QPaintEvent* /*event*/)
     painter.setPen(colorsRef().textSecondary);
     
     // Horizontal 采用普通边距，Vertical 与图标左边缘对齐
-    const int x = (m_orientation == Orientation::Horizontal)
+    const int x = (m_orientation == Qt::Horizontal)
         ? themeSpacing().medium
         : (kRowLeftInset + kContentStart);
     const QRect textRect(x, 0, qMax(0, width() - x - themeSpacing().small), height());

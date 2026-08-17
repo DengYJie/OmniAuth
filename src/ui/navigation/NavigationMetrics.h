@@ -28,16 +28,6 @@ enum class NavigationItemPosition {
 };
 
 /**
- * @brief 面板布局与条目排列方向
- *
- * Horizontal 对应顶栏布局（项横向排列），Vertical 对应侧边栏与 flyout（项纵向排列）。
- */
-enum class Orientation {
-    Horizontal,   // 横向排列（顶栏中的项）
-    Vertical      // 纵向排列（侧边栏 / flyout 中的项）
-};
-
-/**
  * @name 导航布局度量标准
  * @{
  */

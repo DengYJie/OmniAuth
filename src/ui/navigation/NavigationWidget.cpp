@@ -130,7 +130,7 @@ void NavigationWidget::setHoverProgress(float progress) {
 }
 
 void NavigationWidget::setExpandProgress(float progress) {
-    if (m_orientation == Orientation::Horizontal)
+    if (m_orientation == Qt::Horizontal)
         return;
     const float p = qBound(0.0f, progress, 1.0f);
     if (qFuzzyCompare(p, m_expandProgress))
@@ -156,11 +156,11 @@ void NavigationWidget::onThemeUpdated() {
     update();
 }
 
-void NavigationWidget::setOrientation(Orientation orientation) {
+void NavigationWidget::setOrientation(Qt::Orientation orientation) {
     if (m_orientation == orientation)
         return;
     m_orientation = orientation;
-    if (orientation == Orientation::Horizontal) {
+    if (orientation == Qt::Horizontal) {
         m_isCompacted = false;
         m_expandProgress = 1.0f;
         setFixedHeight(kTopBarItemHeight);
@@ -175,7 +175,7 @@ void NavigationWidget::setOrientation(Orientation orientation) {
 
 QRectF NavigationWidget::indicatorRect() const {
     const auto s = themeSpacing();
-    if (m_orientation == Orientation::Horizontal) {
+    if (m_orientation == Qt::Horizontal) {
         // Horizontal：底部居中水平条
         const qreal w = qMin(static_cast<qreal>(width()), static_cast<qreal>(kTopSelectionIndicatorWidth));
         const qreal x = (width() - w) / 2.0;
@@ -208,7 +208,7 @@ void NavigationWidget::keyPressEvent(QKeyEvent* event) {
     switch (event->key()) {
     case Qt::Key_Up:
     case Qt::Key_Down:
-        if (m_orientation == Orientation::Vertical && !isFooterItem()) {
+        if (m_orientation == Qt::Vertical && !isFooterItem()) {
             if (auto* host = navigationFocusHost()) {
                 host->moveFocusBy(event->key() == Qt::Key_Up ? -1 : 1);
                 event->accept();
@@ -218,7 +218,7 @@ void NavigationWidget::keyPressEvent(QKeyEvent* event) {
         break;
     case Qt::Key_Left:
     case Qt::Key_Right:
-        if (m_orientation == Orientation::Horizontal) {
+        if (m_orientation == Qt::Horizontal) {
             if (auto* host = navigationFocusHost()) {
                 host->moveFocusBy(event->key() == Qt::Key_Left ? -1 : 1);
                 event->accept();
@@ -322,7 +322,7 @@ QColor NavigationWidget::currentBackgroundColor() const {
         return colors.subtleTertiary;
     }
     if (m_isSelected) {
-        if (m_orientation == Orientation::Horizontal)
+        if (m_orientation == Qt::Horizontal)
             return Qt::transparent;
         return colors.subtleSecondary;
     }
@@ -335,7 +335,7 @@ QColor NavigationWidget::currentBackgroundColor() const {
 }
 
 float NavigationWidget::currentTextAlpha() const {
-    if (m_orientation == Orientation::Horizontal) {
+    if (m_orientation == Qt::Horizontal) {
         return 1.0f;
     }
     if (m_expandProgress < 0.2f) return 0.0f;

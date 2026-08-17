@@ -70,7 +70,7 @@ namespace ui::navigation {
 
         void setSelected(bool selected) override;
 
-        void setOrientation(Orientation orientation) override;
+        void setOrientation(Qt::Orientation orientation) override;
 
         float arrowAngle() const { return m_arrowAngle; }
         void setArrowAngle(float angle);
