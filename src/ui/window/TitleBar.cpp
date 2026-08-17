@@ -1,4 +1,4 @@
-﻿#include "TitleBar.h"
+#include "TitleBar.h"
 
 #include "ui/animation/AnimatedBackVisualSource.h"
 #include "ui/animation/AnimatedGlobalNavVisualSource.h"
@@ -36,6 +36,8 @@ namespace ui::window {
         constexpr int TitleBarTitleMarginRight = 8;
         // 副标题文本右外边距
         constexpr int TitleBarSubtitleMarginRight = 16;
+        // 最小保证拖拽缓冲区 (Col 10 Min Drag Region)
+        constexpr int TitleBarMinDragRegionWidth = 48;
         // 规范安全间距
         constexpr int ElementSpacing = 16;
         // 标准图标像素尺寸
@@ -82,7 +84,6 @@ namespace ui::window {
         fluent::status_info::ToolTip::attach(m_backButton, tr("Back"));
         m_backButton->setAccessibleName(tr("Back"));
         connect(m_backButton, &fluent::basicinput::Button::clicked, this, &TitleBar::backButtonClicked);
-
         m_animatedBackIcon = new ui::animation::AnimatedIcon(m_backButton);
         m_animatedBackIcon->setSource(std::make_shared<ui::animation::AnimatedBackVisualSource>());
 
@@ -335,6 +336,18 @@ namespace ui::window {
         return m_leftHeaderWidget;
     }
 
+    void TitleBar::setMinDragRegionWidth(int width) {
+        int clampedWidth = qMax(0, width);
+        if (m_minDragRegionWidth == clampedWidth) return;
+        m_minDragRegionWidth = clampedWidth;
+        updateLayout();
+        emit minDragRegionWidthChanged(m_minDragRegionWidth);
+    }
+
+    int TitleBar::minDragRegionWidth() const {
+        return m_minDragRegionWidth;
+    }
+
     void TitleBar::onThemeUpdated() {
         fluent::windowing::TitleBar::onThemeUpdated();
 
@@ -346,13 +359,6 @@ namespace ui::window {
 
         m_titleLabel->setFont(themeFont(Typography::FontRole::Caption).toQFont());
         m_subtitleLabel->setFont(themeFont(Typography::FontRole::Caption).toQFont());
-
-        m_backButton->onThemeUpdated();
-        m_paneToggleButton->onThemeUpdated();
-        m_iconButton->onThemeUpdated();
-        m_minimizeButton->onThemeUpdated();
-        m_maximizeButton->onThemeUpdated();
-        m_closeButton->onThemeUpdated();
 
         updateCaptionButtonSizes();
         syncActivationOpacity();
@@ -379,7 +385,6 @@ namespace ui::window {
         m_maximizeButton->setIconGlyph(isMaximized ? Typography::Icons::ChromeRestore : Typography::Icons::ChromeMaximize, IconSize);
         m_maximizeButton->setAccessibleName(isMaximized ? tr("Restore") : tr("Maximize"));
         fluent::status_info::ToolTip::attach(m_maximizeButton, isMaximized ? tr("Restore") : tr("Maximize"));
-        // 最大化时铺满右上角不设置圆角，普通窗口状态保留控制区圆角
         m_closeButton->setCornerRadii(QMargins(0, isMaximized ? 0 : themeRadius().control, 0, 0));
     }
 
@@ -389,7 +394,6 @@ namespace ui::window {
     }
 
     void TitleBar::updateHeight() {
-        // 存在主内容或右侧内容时强制使用扩展高度
         bool requiresTall = (m_contentWidget != nullptr || m_rightHeaderWidget != nullptr);
         int targetHeight = (m_heightOption == HeightOption::Tall || requiresTall) ? TitleBarTallHeight : TitleBarStandardHeight;
         setTitleBarHeight(targetHeight);
@@ -409,37 +413,32 @@ namespace ui::window {
         const int w = width();
         const int h = titleBarHeight();
 
-        // Col 0: 左侧基准起点
-        int currentX = 0;
+        int currentX = TitleBarLeftPaddingWidth;
 
-        // Col 1: BackButton (40px 区域内留出 2px 边距，实现标准按钮外观)
         if (m_backButtonVisible) {
             m_backButton->setGeometry(currentX + 2, 2, AppTitleBarButtonWidth - 4, h - 4);
             currentX += AppTitleBarButtonWidth;
         }
 
-        // Col 2: PaneToggleButton (40px 区域内留出 2px 边距，实现标准按钮外观)
         if (m_paneToggleButtonVisible) {
             m_paneToggleButton->setGeometry(currentX + 2, 2, AppTitleBarButtonWidth - 4, h - 4);
             currentX += AppTitleBarButtonWidth;
         }
 
-        // Col 3: LeftHeaderPresenter (自定义左侧控件)
         if (m_leftHeaderWidget) {
             m_leftHeaderWidget->setGeometry(currentX, (h - m_leftHeaderWidget->height()) / 2, m_leftHeaderWidget->width(), m_leftHeaderWidget->height());
             currentX += m_leftHeaderWidget->width();
         }
 
-        // 距左侧边框或按钮/LeftHeader 统一保持 16px 规范安全间距
-        currentX += ElementSpacing;
+        currentX += TitleBarLeftHeaderDefaultPaddingWidth;
 
-        // Col 5: Icon (16x16 居中，右侧预留 16px 间距)
         if (!m_icon.isNull()) {
             m_iconButton->setGeometry(currentX, (h - IconSize) / 2, IconSize, IconSize);
-            currentX += IconSize + ElementSpacing;
+            currentX += IconSize + TitleBarIconMarginRight;
         }
 
         int rightOffset = w;
+
         rightOffset -= CaptionButtonWidth;
         m_closeButton->setGeometry(rightOffset, 0, CaptionButtonWidth, h);
         rightOffset -= CaptionButtonWidth;
@@ -447,30 +446,26 @@ namespace ui::window {
         rightOffset -= CaptionButtonWidth;
         m_minimizeButton->setGeometry(rightOffset, 0, CaptionButtonWidth, h);
 
+        rightOffset -= m_minDragRegionWidth;
+
         if (m_rightHeaderWidget) {
             rightOffset -= m_rightHeaderWidget->width();
             m_rightHeaderWidget->setGeometry(rightOffset, (h - m_rightHeaderWidget->height()) / 2, m_rightHeaderWidget->width(), m_rightHeaderWidget->height());
             rightOffset -= ElementSpacing;
         }
 
-        // Content: 根据对齐方式处理居中或拉伸
         int contentLeft = w;
         if (m_contentWidget) {
             if (m_contentAlignment == ContentAlignment::Center) {
-                // 搜索框等：基于窗口几何中心绝对居中
                 int sw = m_contentWidget->width();
                 int sh = m_contentWidget->height();
                 contentLeft = (w - sw) / 2;
                 m_contentWidget->setGeometry(contentLeft, (h - sh) / 2, sw, sh);
             }
-            else {
-                // 选项卡等：占据剩余空间，但暂不分配高度，后续和标题折叠一起处理
-            }
         }
 
-        int titleMaxRight = qMin(rightOffset, (m_contentWidget && m_contentAlignment == ContentAlignment::Center) ? contentLeft - ElementSpacing : rightOffset) - ElementSpacing;
+        int titleMaxRight = qMin(rightOffset, (m_contentWidget && m_contentAlignment == ContentAlignment::Center) ? contentLeft - ElementSpacing : rightOffset);
 
-        // Compact Mode 折叠避让逻辑
         int titleRequiredWidth = 0;
         if (!m_title.isEmpty()) {
             titleRequiredWidth += m_titleLabel->fontMetrics().horizontalAdvance(m_titleLabel->text()) + 4 + TitleBarTitleMarginRight;
@@ -482,7 +477,6 @@ namespace ui::window {
         bool shouldCompact = false;
         if (m_contentWidget != nullptr) {
             if (!m_isCompact) {
-                // 检测是否发生挤压
                 bool isSqueezed = false;
                 if (m_contentAlignment == ContentAlignment::Center && (currentX + titleRequiredWidth > contentLeft - ElementSpacing)) {
                     isSqueezed = true;
@@ -500,7 +494,6 @@ namespace ui::window {
                 }
             }
             else {
-                // 已处于折叠态，如果宽度恢复到记录的临界值，则展开
                 if (w >= m_compactModeThresholdWidth) {
                     m_compactModeThresholdWidth = 0;
                     m_isCompact = false;
@@ -538,14 +531,12 @@ namespace ui::window {
             }
         }
 
-        // 处理自适应延伸的自定义内容（非绝对居中）
         if (m_contentWidget && m_contentAlignment == ContentAlignment::Stretch) {
             int availWidth = qMax(0, titleMaxRight - currentX);
             m_contentWidget->setGeometry(currentX, (h - m_contentWidget->height()) / 2, availWidth, m_contentWidget->height());
         }
 
-        // 同步基类以正确排除系统按钮区域的拖拽命中
-        setSystemReservedTrailingWidth(w - rightOffset);
+        setSystemReservedTrailingWidth(3 * CaptionButtonWidth);
     }
 
     void TitleBar::syncActivationOpacity() {

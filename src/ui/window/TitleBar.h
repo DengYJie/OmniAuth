@@ -29,6 +29,7 @@ class TitleBar : public fluent::windowing::TitleBar {
     Q_PROPERTY(bool backButtonEnabled READ isBackButtonEnabled WRITE setBackButtonEnabled NOTIFY backButtonEnabledChanged)
     Q_PROPERTY(bool paneToggleButtonVisible READ isPaneToggleButtonVisible WRITE setPaneToggleButtonVisible NOTIFY paneToggleButtonVisibleChanged)
     Q_PROPERTY(HeightOption heightOption READ heightOption WRITE setHeightOption NOTIFY heightOptionChanged)
+    Q_PROPERTY(int minDragRegionWidth READ minDragRegionWidth WRITE setMinDragRegionWidth NOTIFY minDragRegionWidthChanged)
 
 public:
     /**
@@ -198,6 +199,18 @@ public:
     QWidget* leftHeaderWidget() const;
 
     /**
+     * @brief 设置右侧头部与系统三键之间的最小拖拽安全区宽度
+     * @param width 宽度像素值，默认 48px（WinUI 3 标准），设为 0 即紧贴三键
+     */
+    void setMinDragRegionWidth(int width);
+
+    /**
+     * @brief 获取右侧最小拖拽安全区宽度
+     * @return 宽度像素值
+     */
+    int minDragRegionWidth() const;
+
+    /**
      * @brief 系统控制按钮类型
      */
     enum class SystemButtonType {
@@ -270,6 +283,12 @@ signals:
     void heightOptionChanged(HeightOption option);
 
     /**
+     * @brief 最小拖拽安全区宽度变更信号
+     * @param width 新宽度像素值
+     */
+    void minDragRegionWidthChanged(int width);
+
+    /**
      * @brief 可点击交互控件变更信号（供 WindowBase / QWindowKit 动态同步穿透区域）
      * @param widget 发生变化的控件指针
      * @param visible 是否需要接收鼠标交互（true 为交互控件，false 为窗口拖拽区）
@@ -317,6 +336,7 @@ private:
     bool m_backButtonEnabled = true;
     bool m_paneToggleButtonVisible = false;
     HeightOption m_heightOption = HeightOption::Standard;
+    int m_minDragRegionWidth = 48;
 
     // 内部状态跟踪
     bool m_isCompact = false;
