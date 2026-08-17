@@ -208,7 +208,7 @@ void NavigationWidget::keyPressEvent(QKeyEvent* event) {
     switch (event->key()) {
     case Qt::Key_Up:
     case Qt::Key_Down:
-        if (m_orientation == Orientation::Vertical) {
+        if (m_orientation == Orientation::Vertical && !isFooterItem()) {
             if (auto* host = navigationFocusHost()) {
                 host->moveFocusBy(event->key() == Qt::Key_Up ? -1 : 1);
                 event->accept();

@@ -213,6 +213,7 @@ namespace ui::navigation {
 
         widget->setOrientation(m_orientation);
         widget->setExpandProgress(m_expandProgress);
+        widget->setItemPosition(position);
 
         if (auto* header = qobject_cast<NavigationSectionHeader*>(widget))
             m_headers.append(header);
@@ -493,7 +494,7 @@ namespace ui::navigation {
     {
         if (!node)
             return;
-        if (node->m_itemWidget)
+        if (node->m_itemWidget && !node->m_itemWidget->isFooterItem())
             out.append(node->m_itemWidget);
 
         // 根节点的子节点（即一级菜单）永远是展开的；其他分类节点需要判断 m_isExpanded
