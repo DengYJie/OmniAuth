@@ -36,6 +36,11 @@ public:
      */
     static bool isReducedMotion();
 
+    /**
+     * @brief 全局输入模态感知：当前是否处于物理键盘导航模式
+     */
+    static bool isKeyboardMode();
+
     bool isCompacted() const { return m_orientation == Orientation::Vertical && m_isCompacted; }
     virtual void setCompacted(bool compacted);
 
@@ -88,7 +93,6 @@ protected:
 
 signals:
     void clicked(bool triggerByUser);
-    void selectedChanged(bool selected);
 
 protected:
     void enterEvent(FluentEnterEvent* event) override;
@@ -101,7 +105,6 @@ protected:
 
     QColor currentBackgroundColor() const;
     virtual float currentTextAlpha() const;
-    bool hasKeyboardFocus() const { return m_keyboardFocused; }
 
     /// 绘制双层实线高对比度键盘焦点环
     void drawFocusVisual(QPainter& painter, const QRectF& rect) const;
@@ -113,8 +116,6 @@ protected:
     bool m_isHovered = false;
     /// 分类项与操作按钮设为 false
     bool m_isSelectable = true;
-    /// 仅键盘 Tab/快捷键到达时置位，控制焦点环渲染
-    bool m_keyboardFocused = false;
     NavigationItemPosition m_itemPosition = NavigationItemPosition::Top;
     /// 用于阶梯缩进
     int m_nodeDepth = 0;

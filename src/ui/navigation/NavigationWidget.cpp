@@ -1,8 +1,11 @@
 #include "ui/navigation/NavigationWidget.h"
 #include "ui/navigation/NavigationFocusHost.h"
+#include <QApplication>
 #include <QMouseEvent>
 #include <QKeyEvent>
 #include <QPainter>
+#include <QVariantAnimation>
+#include <QDebug>
 #include <FluentQt/Design.h>
 
 #ifdef Q_OS_WIN
@@ -10,6 +13,62 @@
 #endif
 
 namespace ui::navigation {
+
+namespace {
+
+class InputModalityFilter : public QObject {
+public:
+    static InputModalityFilter& instance() {
+        static InputModalityFilter s_instance;
+        return s_instance;
+    }
+
+    bool isKeyboardMode() const { return m_keyboardMode; }
+
+protected:
+    InputModalityFilter() {
+        if (qApp) {
+            qApp->installEventFilter(this);
+        }
+    }
+
+    bool eventFilter(QObject* watched, QEvent* event) override {
+        switch (event->type()) {
+        case QEvent::KeyPress: {
+            auto* ke = static_cast<QKeyEvent*>(event);
+            if (ke->key() == Qt::Key_Tab || ke->key() == Qt::Key_Backtab ||
+                ke->key() == Qt::Key_Up || ke->key() == Qt::Key_Down ||
+                ke->key() == Qt::Key_Left || ke->key() == Qt::Key_Right) {
+                if (!m_keyboardMode) {
+                    m_keyboardMode = true;
+                    if (QWidget* focused = QApplication::focusWidget()) {
+                        focused->update();
+                    }
+                }
+            }
+            break;
+        }
+        case QEvent::MouseButtonPress:
+        case QEvent::TouchBegin: {
+            if (m_keyboardMode) {
+                m_keyboardMode = false;
+                if (QWidget* focused = QApplication::focusWidget()) {
+                    focused->update();
+                }
+            }
+            break;
+        }
+        default:
+            break;
+        }
+        return QObject::eventFilter(watched, event);
+    }
+
+private:
+    bool m_keyboardMode = false;
+};
+
+} // namespace
 
 bool NavigationWidget::isReducedMotion() {
 #ifdef Q_OS_WIN
@@ -21,12 +80,18 @@ bool NavigationWidget::isReducedMotion() {
     return false;
 }
 
+bool NavigationWidget::isKeyboardMode() {
+    return InputModalityFilter::instance().isKeyboardMode();
+}
+
 NavigationWidget::NavigationWidget(bool isSelectable, QWidget* parent)
     : QWidget(parent)
     , m_isSelectable(isSelectable)
 {
     setMouseTracking(true);
-    setFocusPolicy(m_isSelectable ? Qt::TabFocus : Qt::NoFocus);
+    // WinUI 3 规范: 所有导航交互项（包含分类目录）都必须能获得键盘焦点，
+    // 以便支持使用 Space 键展开/折叠。不可被选中（Selectable=false）仅代表它不能切页。
+    setFocusPolicy(Qt::TabFocus);
     setFixedHeight(kItemHeight);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
@@ -50,7 +115,6 @@ void NavigationWidget::setSelected(bool selected) {
     if (!m_isSelectable || m_isSelected == selected) return;
     m_isSelected = selected;
     update();
-    emit selectedChanged(selected);
 }
 
 void NavigationWidget::setNodeDepth(int depth) {
@@ -144,11 +208,22 @@ void NavigationWidget::keyPressEvent(QKeyEvent* event) {
     switch (event->key()) {
     case Qt::Key_Up:
     case Qt::Key_Down:
-        // 向上委托宿主，保持列表焦点闭环
-        if (auto* host = navigationFocusHost()) {
-            host->moveFocusBy(event->key() == Qt::Key_Up ? -1 : 1);
-            event->accept();
-            return;
+        if (m_orientation == Orientation::Vertical) {
+            if (auto* host = navigationFocusHost()) {
+                host->moveFocusBy(event->key() == Qt::Key_Up ? -1 : 1);
+                event->accept();
+                return;
+            }
+        }
+        break;
+    case Qt::Key_Left:
+    case Qt::Key_Right:
+        if (m_orientation == Orientation::Horizontal) {
+            if (auto* host = navigationFocusHost()) {
+                host->moveFocusBy(event->key() == Qt::Key_Left ? -1 : 1);
+                event->accept();
+                return;
+            }
         }
         break;
     case Qt::Key_Space:
@@ -164,29 +239,17 @@ void NavigationWidget::keyPressEvent(QKeyEvent* event) {
 }
 
 void NavigationWidget::focusInEvent(QFocusEvent* event) {
-    // 仅键盘 Tab/快捷键到达时渲染视觉焦点环，指针点击不渲染
-    switch (event->reason()) {
-    case Qt::TabFocusReason:
-    case Qt::BacktabFocusReason:
-    case Qt::ShortcutFocusReason:
-        m_keyboardFocused = true;
-        break;
-    default:
-        m_keyboardFocused = false;
-        break;
-    }
     update();
     QWidget::focusInEvent(event);
 }
 
 void NavigationWidget::focusOutEvent(QFocusEvent* event) {
-    m_keyboardFocused = false;
     update();
     QWidget::focusOutEvent(event);
 }
 
 void NavigationWidget::drawFocusVisual(QPainter& painter, const QRectF& rect) const {
-    if (!m_keyboardFocused) return;
+    if (!hasFocus() || !isKeyboardMode()) return;
     const auto& colors = colorsRef();
     const auto r = themeRadius();
     constexpr int kFocusRingGap = 2;
@@ -231,7 +294,6 @@ void NavigationWidget::leaveEvent(QEvent* event) {
 
 void NavigationWidget::mousePressEvent(QMouseEvent* event) {
     if (event->button() == Qt::LeftButton) {
-        m_keyboardFocused = false;
         setFocus(Qt::MouseFocusReason);
         m_isPressed = true;
         update();
