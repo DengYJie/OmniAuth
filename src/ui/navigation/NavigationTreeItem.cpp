@@ -70,7 +70,11 @@ namespace ui::navigation {
     void NavigationTreeItem::notifyAccessibleState(const QAccessible::State& state)
     {
         // 向无障碍辅助工具同步状态位变化（选中、展开/折叠）
-        QAccessibleStateChangeEvent change(this, state);
+        QAccessible::State st = state;
+        if (isCategory()) {
+            st.expandable = true;
+        }
+        QAccessibleStateChangeEvent change(this, st);
         QAccessible::updateAccessibility(&change);
     }
 

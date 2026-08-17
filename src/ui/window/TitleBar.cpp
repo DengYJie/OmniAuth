@@ -7,6 +7,7 @@
 #include <QLabel>
 #include <QApplication>
 #include <QFontMetrics>
+#include <QAccessible>
 
 namespace ui::window {
 
@@ -168,6 +169,9 @@ void TitleBar::setTitle(const QString& title) {
     if (m_title == title) return;
     m_title = title;
     m_titleLabel->setText(title);
+    setAccessibleName(title);
+    QAccessibleEvent nameEvent(this, QAccessible::NameChanged);
+    QAccessible::updateAccessibility(&nameEvent);
     updateLayout();
     emit titleChanged(title);
 }
@@ -181,6 +185,9 @@ void TitleBar::setSubtitle(const QString& subtitle) {
     m_subtitle = subtitle;
     m_subtitleLabel->setText(subtitle);
     m_subtitleLabel->setVisible(!subtitle.isEmpty());
+    setAccessibleDescription(subtitle);
+    QAccessibleEvent descEvent(this, QAccessible::DescriptionChanged);
+    QAccessible::updateAccessibility(&descEvent);
     updateLayout();
     emit subtitleChanged(subtitle);
 }

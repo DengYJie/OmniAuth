@@ -1,4 +1,4 @@
-#include "ui/navigation/NavigationFlyout.h"
+﻿#include "ui/navigation/NavigationFlyout.h"
 
 #include <functional>
 
@@ -6,11 +6,14 @@
 
 #include "components/foundation/overlay/OverlayShadow.h"
 
+#include <QAccessible>
 #include <QApplication>
+#include <QBoxLayout>
 #include <QEasingCurve>
 #include <QEvent>
 #include <QFontMetrics>
 #include <QGuiApplication>
+#include <QHash>
 #include <QHideEvent>
 #include <QKeyEvent>
 #include <QMouseEvent>
@@ -20,10 +23,8 @@
 #include <QPropertyAnimation>
 #include <QScreen>
 #include <QTimer>
-#include <QWheelEvent>
-#include <QBoxLayout>
 #include <QVBoxLayout>
-#include <QHash>
+#include <QWheelEvent>
 
 #include "ui/navigation/NavigationPushButton.h"
 #include "ui/navigation/NavigationSectionHeader.h"
@@ -32,54 +33,54 @@
 
 namespace ui::navigation {
 
-namespace {
+    namespace {
 
-QPixmap generateGrainTile(qreal devicePixelRatio)
-{
-    static QHash<int, QPixmap> s_grainCache;
-    const int dprInt = qMax(1, qRound(devicePixelRatio * 100));
+        QPixmap generateGrainTile(qreal devicePixelRatio)
+        {
+            static QHash<int, QPixmap> s_grainCache;
+            const int dprInt = qMax(1, qRound(devicePixelRatio * 100));
 
-    if (s_grainCache.contains(dprInt)) {
-        return s_grainCache.value(dprInt);
-    }
+            if (s_grainCache.contains(dprInt)) {
+                return s_grainCache.value(dprInt);
+            }
 
-    const int size = qMax(1, qRound(96 * devicePixelRatio));
-    QImage image(size, size, QImage::Format_ARGB32_Premultiplied);
+            const int size = qMax(1, qRound(96 * devicePixelRatio));
+            QImage image(size, size, QImage::Format_ARGB32_Premultiplied);
 
-    quint32 state = 0x8f3d7a21U ^ static_cast<quint32>(dprInt);
-    for (int y = 0; y < size; ++y) {
-        auto* scanLine = reinterpret_cast<QRgb*>(image.scanLine(y));
-        for (int x = 0; x < size; ++x) {
-            state ^= state << 13U;
-            state ^= state >> 17U;
-            state ^= state << 5U;
-            const int value = static_cast<int>((state >> 24U) & 0xffU);
-            scanLine[x] = qRgb(value, value, value);
+            quint32 state = 0x8f3d7a21U ^ static_cast<quint32>(dprInt);
+            for (int y = 0; y < size; ++y) {
+                auto* scanLine = reinterpret_cast<QRgb*>(image.scanLine(y));
+                for (int x = 0; x < size; ++x) {
+                    state ^= state << 13U;
+                    state ^= state >> 17U;
+                    state ^= state << 5U;
+                    const int value = static_cast<int>((state >> 24U) & 0xffU);
+                    scanLine[x] = qRgb(value, value, value);
+                }
+            }
+
+            QPixmap texture = QPixmap::fromImage(image);
+            texture.setDevicePixelRatio(devicePixelRatio);
+            s_grainCache.insert(dprInt, texture);
+            return texture;
         }
-    }
 
-    QPixmap texture = QPixmap::fromImage(image);
-    texture.setDevicePixelRatio(devicePixelRatio);
-    s_grainCache.insert(dprInt, texture);
-    return texture;
-}
+        void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.030)
+        {
+            painter.save();
+            painter.setRenderHint(QPainter::SmoothPixmapTransform, false);
+            painter.setOpacity(opacity);
 
-void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.030)
-{
-    painter.save();
-    painter.setRenderHint(QPainter::SmoothPixmapTransform, false);
-    painter.setOpacity(opacity);
+            qreal dpr = 1.0;
+            if (painter.device()) {
+                dpr = painter.device()->devicePixelRatioF();
+            }
 
-    qreal dpr = 1.0;
-    if (painter.device()) {
-        dpr = painter.device()->devicePixelRatioF();
-    }
+            painter.drawTiledPixmap(rect, generateGrainTile(dpr), QPoint(0, 0));
+            painter.restore();
+        }
 
-    painter.drawTiledPixmap(rect, generateGrainTile(dpr), QPoint(0, 0));
-    painter.restore();
-}
-
-} // namespace
+    } // namespace
 
     NavigationFlyout::NavigationFlyout(NavigationTreeWidget* rootTree, QWidget* host)
         : NavigationTreeWidgetBase(rootTree, host)
@@ -116,7 +117,7 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
                         || (root() && root()->isAncestorOf(selectedKey, item->routeKey())));
                     item->setSelected(selected);
                 }
-            });
+                });
         }
     }
 
@@ -215,7 +216,8 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
                 if (hostLayout) {
                     const int idx = hostLayout->indexOf(parentClone->m_itemWidget) + 1;
                     hostLayout->insertWidget(idx, container);
-                } else {
+                }
+                else {
                     m_contentLayout->addWidget(container);
                 }
                 container->setVisible(parentClone->m_isExpanded);
@@ -267,7 +269,7 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
                 if (p->isCategory() && !p->m_isExpanded) return false;
             }
             return true;
-        };
+            };
 
         if (isReachable(node)) {
             return qobject_cast<NavigationTreeItem*>(node->itemWidget());
@@ -353,7 +355,7 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
             maxContentW = qMax(maxContentW, w);
             for (auto* c : n->children())
                 visit(c);
-        };
+            };
         for (auto* top : m_children)
             visit(top);
 
@@ -374,7 +376,8 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
         m_isOpen = open;
         if (open) {
             this->open();
-        } else {
+        }
+        else {
             close();
         }
     }
@@ -386,7 +389,7 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
 
         const QRect anchorRect(anchor->mapToGlobal(QPoint(0, 0)), anchor->size());
         const QSize cardSize = ::fluent::overlay::visibleCardRect(rect(), kShadowMargin).size();
-        
+
         QPoint globalCardTopLeft;
         QPoint slideInOffset;
 
@@ -396,17 +399,19 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
             const int yPos = anchorCenterY - cardSize.height() / 2;
             globalCardTopLeft = QPoint(panelRightX + m_anchorOffset, yPos);
             slideInOffset = QPoint(8, 0);
-        } else {
+        }
+        else {
             const int panelBottomY = m_host->mapToGlobal(QPoint(0, m_host->height())).y();
             int flyoutX = 0;
             if (m_placement == Placement::BottomRight) {
                 const int anchorRightX = anchorRect.right();
                 flyoutX = anchorRightX - cardSize.width() + 1;
-            } else {
+            }
+            else {
                 const int anchorCenterX = anchorRect.x() + anchorRect.width() / 2;
                 flyoutX = anchorCenterX - cardSize.width() / 2;
             }
-            
+
             globalCardTopLeft = QPoint(flyoutX, panelBottomY + m_anchorOffset);
             slideInOffset = QPoint(0, 16);
         }
@@ -418,7 +423,8 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
     {
         if (m_anchorWidget) {
             showAt(m_anchorWidget);
-        } else {
+        }
+        else {
             openAt(m_globalCardPos, m_slideInOffset);
         }
     }
@@ -483,7 +489,7 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
 
                 connect(m_animGroup, &QParallelAnimationGroup::finished, this, [this]() {
                     emit opened();
-                });
+                    });
             }
             m_animGroup->stop();
             move(startPos);
@@ -565,7 +571,7 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
             emit closed();
             closeGroup->deleteLater();
             this->deleteLater();
-        });
+            });
 
         closeGroup->start();
     }
@@ -641,7 +647,7 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
                     if (hitWidget && (hitWidget == target || target->isAncestorOf(hitWidget)))
                         return true;
                     return target->rect().contains(target->mapFromGlobal(globalPos));
-                };
+                    };
 
                 if (isHit(m_anchorWidget)) {
                     close();
@@ -675,7 +681,10 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
     void NavigationFlyout::showEvent(QShowEvent* event)
     {
         NavigationTreeWidgetBase::showEvent(event);
-        
+
+        QAccessibleEvent popupStartEvent(this, QAccessible::PopupMenuStart);
+        QAccessible::updateAccessibility(&popupStartEvent);
+
         QTimer::singleShot(0, this, [this]() {
             if (!m_children.isEmpty()) {
                 if (NavigationWidget::isKeyboardMode()) {
@@ -684,13 +693,17 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
                     }
                 }
             }
-        });
+            });
     }
 
     void NavigationFlyout::hideEvent(QHideEvent* event)
     {
         qApp->removeEventFilter(this);
         QWidget::hideEvent(event);
+
+        QAccessibleEvent popupEndEvent(this, QAccessible::PopupMenuEnd);
+        QAccessible::updateAccessibility(&popupEndEvent);
+
         if (m_isOpen) {
             emit aboutToHide();
             m_isOpen = false;
@@ -721,7 +734,7 @@ void paintFlyoutGrain(QPainter& painter, const QRect& rect, qreal opacity = 0.03
     void NavigationFlyout::paintEvent(QPaintEvent* event)
     {
         Q_UNUSED(event)
-        QPainter painter(this);
+            QPainter painter(this);
         painter.setRenderHint(QPainter::Antialiasing);
 
         painter.setCompositionMode(QPainter::CompositionMode_Source);
