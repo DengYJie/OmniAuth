@@ -1,9 +1,11 @@
-﻿#include "MainWindow.h"
+#include "MainWindow.h"
 
 #include "ui/navigation/NavigationPanel.h"
+#include <FluentQt/BasicInput.h>
 #include <FluentQt/Design.h>
 #include <FluentQt/Navigation.h>
 #include <FluentQt/TextFields.h>
+#include <QHBoxLayout>
 #include <QVBoxLayout>
 
 namespace fluent_tf = fluent::textfields;
@@ -18,6 +20,47 @@ namespace {
         auto* title = new fluent_tf::Label(titleText, page);
         title->setFluentTypography(Typography::FontRole::Title);
         layout->addWidget(title);
+        layout->addStretch();
+        return page;
+    }
+
+    QWidget* createSettingsPage(MainWindow* window) {
+        auto* page = new QWidget();
+        auto* layout = new QVBoxLayout(page);
+        layout->setContentsMargins(32, 24, 32, 24);
+        layout->setSpacing(16);
+
+        auto* title = new fluent_tf::Label(QStringLiteral("系统设置与个性化"), page);
+        title->setFluentTypography(Typography::FontRole::Title);
+        layout->addWidget(title);
+
+        auto* sectionTitle = new fluent_tf::Label(QStringLiteral("导航栏布局模式 (Navigation Position)"), page);
+        sectionTitle->setFluentTypography(Typography::FontRole::BodyStrong);
+        layout->addWidget(sectionTitle);
+
+        auto* descLabel = new fluent_tf::Label(QStringLiteral("切换侧边栏 (Left) 与顶部栏 (Top) 导航展示形态"), page);
+        descLabel->setFluentTypography(Typography::FontRole::Caption);
+        layout->addWidget(descLabel);
+
+        auto* switchLayout = new QHBoxLayout();
+        switchLayout->setContentsMargins(0, 0, 0, 0);
+
+        auto* navPosSwitch = new fluent::basicinput::ToggleSwitch(page);
+        navPosSwitch->setOnContent(QStringLiteral("顶栏模式 (Top)"));
+        navPosSwitch->setOffContent(QStringLiteral("侧边栏模式 (Left)"));
+        navPosSwitch->setIsOn(window->navigationView()->displayMode() == fluent::navigation::NavigationView::DisplayMode::Top);
+
+        QObject::connect(navPosSwitch, &fluent::basicinput::ToggleSwitch::toggled, window, [window](bool isTop) {
+            window->navigationView()->setDisplayMode(
+                isTop ? fluent::navigation::NavigationView::DisplayMode::Top
+                      : fluent::navigation::NavigationView::DisplayMode::Left
+            );
+        });
+
+        switchLayout->addWidget(navPosSwitch);
+        switchLayout->addStretch();
+        layout->addLayout(switchLayout);
+
         layout->addStretch();
         return page;
     }
@@ -79,7 +122,7 @@ void MainWindow::buildNavigation() {
     addSubInterface(QStringLiteral("smsCh"), createDummyPage(QStringLiteral("短信渠道配置")), Typography::Icons::Phone, QStringLiteral("短信渠道"), QStringLiteral("channels"));
 
     // 底部: 系统设置
-    addSubInterface(QStringLiteral("settings"), createDummyPage(QStringLiteral("系统参数配置")), Typography::Icons::Settings, QStringLiteral("系统设置"), QString(), ui::navigation::NavigationItemPosition::Bottom);
+    addSubInterface(QStringLiteral("settings"), createSettingsPage(this), Typography::Icons::Settings, QStringLiteral("系统设置"), QString(), ui::navigation::NavigationItemPosition::Bottom);
     addSubInterface(QStringLiteral("about"), createDummyPage(QStringLiteral("关于 OmniAuth")), Typography::Icons::Info, QStringLiteral("关于"), QString(), ui::navigation::NavigationItemPosition::Bottom);
 
     // 初始选中
