@@ -88,8 +88,8 @@ void LoginViewModel::loginClicked(const QString& account, const QString& passwor
     m_pendingPassword = password;
     updateState([&](LoginState& state) {
         state.errorMessage.clear();
-        state.isCaptchaVisible = true;
     });
+    emit requestCaptcha();
 }
 
 void LoginViewModel::smsLoginClicked(const QString& account, const QString& code) {
@@ -142,16 +142,11 @@ void LoginViewModel::requestSmsCode() {
     emit requestCaptcha();
 }
 
-void LoginViewModel::captchaClosed() {
-    updateState([&](LoginState& state) { state.isCaptchaVisible = false; });
-}
-
 void LoginViewModel::captchaVerified() {
     if (m_state.loginMode == 1) {
         // 验证码登录模式：滑块验证通过后发送验证码
         m_countdownTimer->start();
         updateState([](LoginState& state) {
-            state.isCaptchaVisible = false;
             state.isCodeSent = true;
             state.codeCountdown = 60;
             state.errorMessage.clear();
@@ -159,7 +154,6 @@ void LoginViewModel::captchaVerified() {
     } else {
         // 密码登录模式：滑块验证通过后执行登录
         updateState([](LoginState& state) {
-            state.isCaptchaVisible = false;
             state.isLoggingIn = true;
         });
 

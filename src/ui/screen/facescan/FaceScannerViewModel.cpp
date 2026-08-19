@@ -44,7 +44,7 @@ void FaceScannerViewModel::startScan(int cameraIndex) {
         state.authenticatedUser.clear();
     });
 
-    bool started = m_faceLoginUseCase->startFaceScan(cameraIndex);
+    bool started = m_faceLoginUseCase && m_faceLoginUseCase->startFaceScan(cameraIndex);
     if (!started) {
         updateState([&](FaceScannerState& state) {
             state.isScanning = false;

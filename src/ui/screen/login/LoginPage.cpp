@@ -186,13 +186,6 @@ void LoginPage::bindViewModel() {
 
 // ── 渲染状态 ─────────────────────────────────────────────────
 void LoginPage::renderState(const LoginState& state) {
-    // 1. 控制验证码蒙层
-    if (state.isCaptchaVisible && m_captchaOverlay->isHidden()) {
-        m_captchaOverlay->showOverlay();
-    }
-    else if (!state.isCaptchaVisible && !m_captchaOverlay->isHidden()) {
-        m_captchaOverlay->hideOverlay();
-    }
 
     // 2. 模式切换：密码 / 验证码
     if (m_loginModePivot->selectedIndex() != state.loginMode) {

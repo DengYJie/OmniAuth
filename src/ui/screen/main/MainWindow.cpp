@@ -87,7 +87,9 @@ namespace {
             if (window->uid() <= 0) {
                 auto* warnDialog = new fluent::dialogs_flyouts::ContentDialog(window);
                 warnDialog->setTitle(QStringLiteral("提示"));
-                warnDialog->setContentText(QStringLiteral("当前未获取到有效用户登录态，无法绑定人脸"));
+                auto* warnLabel = new fluent_tf::Label(QStringLiteral("当前未获取到有效用户登录态，无法绑定人脸"), warnDialog);
+                warnLabel->setWordWrap(true);
+                warnDialog->setContent(warnLabel);
                 warnDialog->setCloseButtonText(QStringLiteral("确定"));
                 warnDialog->setAttribute(Qt::WA_DeleteOnClose);
                 warnDialog->exec();
@@ -119,11 +121,11 @@ MainWindow::MainWindow(int uid, const QString& username, bool promptFaceEnroll, 
 }
 
 int MainWindow::uid() const {
-    return m_viewModel->currentState().uid;
+    return m_viewModel->state().uid;
 }
 
 QString MainWindow::username() const {
-    return m_viewModel->currentState().username;
+    return m_viewModel->state().username;
 }
 
 void MainWindow::initWindow() {
@@ -150,7 +152,9 @@ void MainWindow::renderState(const MainWindowState& state) {
 void MainWindow::promptFaceEnrollDialog() {
     auto* dialog = new fluent::dialogs_flyouts::ContentDialog(this);
     dialog->setTitle(QStringLiteral("人脸登录推荐"));
-    dialog->setContentText(QStringLiteral("检测到您尚未录入面部数据，是否立即录入以便下次直接刷脸登录？"));
+    auto* label = new fluent_tf::Label(QStringLiteral("检测到您尚未录入面部数据，是否立即录入以便下次直接刷脸登录？"), dialog);
+    label->setWordWrap(true);
+    dialog->setContent(label);
     dialog->setPrimaryButtonText(QStringLiteral("立即录入"));
     dialog->setCloseButtonText(QStringLiteral("稍后再说"));
     dialog->setDefaultButton(fluent::dialogs_flyouts::ContentDialog::Primary);

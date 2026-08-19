@@ -4,14 +4,14 @@
 
 MainWindowViewModel::MainWindowViewModel(int uid, const QString& username, QObject* parent)
     : BaseViewModel<MainWindowViewModel, MainWindowState>(parent) {
-    auto state = currentState();
-    state.uid = uid;
-    state.username = username;
-    updateState(state);
+    auto s = this->state();
+    s.uid = uid;
+    s.username = username;
+    updateState(s);
 }
 
 void MainWindowViewModel::checkFaceEnrollment() {
-    int currentUid = currentState().uid;
+    int currentUid = this->state().uid;
     if (currentUid <= 0) return;
 
     if (auto userRepo = AppContainer::userRepository()) {
@@ -20,7 +20,7 @@ void MainWindowViewModel::checkFaceEnrollment() {
             if (!weakThis) return;
             QMetaObject::invokeMethod(weakThis.data(), [weakThis, hasFace]() {
                 if (weakThis && !hasFace) {
-                    auto s = weakThis->currentState();
+                    auto s = weakThis->state();
                     s.showFaceEnrollPrompt = true;
                     weakThis->updateState(s);
                 }
@@ -30,9 +30,9 @@ void MainWindowViewModel::checkFaceEnrollment() {
 }
 
 void MainWindowViewModel::clearFaceEnrollPrompt() {
-    auto state = currentState();
-    if (state.showFaceEnrollPrompt) {
-        state.showFaceEnrollPrompt = false;
-        updateState(state);
+    auto s = this->state();
+    if (s.showFaceEnrollPrompt) {
+        s.showFaceEnrollPrompt = false;
+        updateState(s);
     }
 }

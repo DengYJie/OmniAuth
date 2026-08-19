@@ -6,7 +6,6 @@
 #include "ui/common/BaseViewModel.h"
 
 struct LoginState {
-  bool isCaptchaVisible = false;
   bool isLoggingIn = false;
   QString errorMessage;
 
@@ -36,7 +35,6 @@ class LoginViewModel : public BaseViewModel<LoginViewModel, LoginState> {
   void smsLoginClicked(const QString& account, const QString& code);
   void requestSmsCode();
   void captchaVerified();
-  void captchaClosed();
   void resetError();
 
  signals:

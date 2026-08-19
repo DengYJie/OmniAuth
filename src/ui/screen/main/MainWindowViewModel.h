@@ -23,4 +23,10 @@ public:
     // Intents
     void checkFaceEnrollment();
     void clearFaceEnrollPrompt();
+
+signals:
+    void stateChanged(const MainWindowState& state);
+
+protected:
+    void emitStateChanged() override { emit stateChanged(m_state); }
 };
