@@ -68,9 +68,12 @@ namespace {
 
 }  // namespace
 
-MainWindow::MainWindow(QWidget* parent) : NavigationWindow(parent) {
+MainWindow::MainWindow(const QString& username, QWidget* parent) : NavigationWindow(parent) {
     initWindow();
     buildNavigation();
+    if (!username.isEmpty()) {
+        setWindowTitle(QString("OmniAuth - 主系统 - [%1]").arg(username));
+    }
 }
 
 void MainWindow::initWindow() {

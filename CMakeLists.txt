@@ -100,6 +100,8 @@ set(PROJECT_SOURCES
     src/ui/widget/SliderCaptchaWidget.cpp
     src/ui/widget/CaptchaOverlay.h
     src/ui/widget/CaptchaOverlay.cpp
+    src/ui/widget/Stepper.h
+    src/ui/widget/Stepper.cpp
 
     src/domain/usecase/FaceLoginUseCase.h
     src/domain/usecase/FaceLoginUseCase.cpp

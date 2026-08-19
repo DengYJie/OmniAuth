@@ -41,8 +41,6 @@ int main(int argc, char* argv[]) {
 
     AppContainer::init(false);
 
-    MainWindow w;
-    w.show();
     AuthWindow authWindow;
     authWindow.show();
 

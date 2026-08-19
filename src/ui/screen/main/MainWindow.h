@@ -20,7 +20,7 @@ class MainWindow : public NavigationWindow {
     Q_OBJECT
 
 public:
-    explicit MainWindow(QWidget* parent = nullptr);
+    explicit MainWindow(const QString& username = QString(), QWidget* parent = nullptr);
     ~MainWindow() override = default;
 
 private:

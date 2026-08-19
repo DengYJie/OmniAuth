@@ -49,15 +49,11 @@ class RegisterPage : public QWidget {
   void setupStep1();
   QWidget* m_step1Widget = nullptr;
   fluent::navigation::Pivot* m_contactPivot = nullptr;
-  fluent::navigation::StackContentHost* m_contactStack = nullptr;
-  // 邮箱 tab 控件
-  fluent::textfields::LineEdit* m_emailInput = nullptr;
-  fluent::basicinput::Button* m_emailSendBtn = nullptr;
-  fluent::textfields::LineEdit* m_emailCodeInput = nullptr;
-  // 手机号 tab 控件
-  fluent::textfields::LineEdit* m_phoneInput = nullptr;
-  fluent::basicinput::Button* m_phoneSendBtn = nullptr;
-  fluent::textfields::LineEdit* m_phoneCodeInput = nullptr;
+  // 动态联系方式输入 (根据 Pivot 选择切换邮箱/手机号)
+  void applyContactMode();
+  fluent::textfields::LineEdit* m_contactInput = nullptr;
+  fluent::basicinput::Button* m_sendBtn = nullptr;
+  fluent::textfields::LineEdit* m_codeInput = nullptr;
   fluent::basicinput::Button* m_nextBtn1 = nullptr;
   fluent::status_info::InfoBar* m_errorText1 = nullptr;
 

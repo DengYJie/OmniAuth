@@ -62,8 +62,7 @@ class LoginPage : public QWidget {
   // 账号输入
   fluent::textfields::LineEdit* m_accountInput = nullptr;
 
-  // 密码登录区域
-  QWidget* m_passwordSection = nullptr;
+  // 密码输入
   fluent::textfields::PasswordBox* m_passwordInput = nullptr;
 
   // 验证码登录区域

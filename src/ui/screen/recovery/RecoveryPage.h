@@ -5,11 +5,13 @@
 #include <QWidget>
 
 #include <FluentQt/BasicInput.h>
+#include <FluentQt/Collections.h>
 #include <FluentQt/Navigation.h>
 #include <FluentQt/TextFields.h>
 
 #include "ui/widget/FaceScannerWidget.h"
 #include "ui/screen/recovery/RecoveryViewModel.h"
+#include "ui/widget/Stepper.h"
 
 namespace fluent::basicinput { class Button; }
 namespace fluent::textfields { class Label; class LineEdit; class PasswordBox; }
@@ -43,7 +45,7 @@ private:
     // Step 2: Security Auth
     void setupStep2();
     QWidget* m_step2Widget;
-    fluent::navigation::StackContentHost* m_step2Stacked;
+    fluent::collections::StackView* m_step2Stacked;
     
     // Step 2.1: Method Selection
     QWidget* m_methodSelectWidget;
@@ -69,12 +71,13 @@ private:
     fluent::textfields::PasswordBox* m_newPwdInput;
     fluent::textfields::PasswordBox* m_confirmPwdInput;
     QWidget* m_strengthBar;
-    fluent::basicinput::Button* m_backBtn3;
     fluent::basicinput::Button* m_resetBtn;
     fluent::status_info::InfoBar* m_errorText3;
     
-    fluent::navigation::StackContentHost* m_mainStackedWidget;
+    fluent::collections::StackView* m_mainStackedWidget;
     CaptchaOverlay* m_captchaOverlay;
+    
+    ui::widget::Stepper* m_stepper;
     
     RecoveryViewModel* m_viewModel;
 };
