@@ -170,6 +170,8 @@ set(PROJECT_SOURCES
     src/ui/screen/login/LoginPage.cpp
     src/ui/screen/facescan/FaceScannerPage.h
     src/ui/screen/facescan/FaceScannerPage.cpp
+    src/ui/screen/facescan/FaceEnrollDialog.h
+    src/ui/screen/facescan/FaceEnrollDialog.cpp
     src/ui/screen/register/RegisterPage.h
     src/ui/screen/register/RegisterPage.cpp
     src/ui/screen/recovery/RecoveryPage.h
@@ -182,6 +184,8 @@ set(PROJECT_SOURCES
     src/ui/screen/login/LoginViewModel.cpp
     src/ui/screen/facescan/FaceScannerViewModel.h
     src/ui/screen/facescan/FaceScannerViewModel.cpp
+    src/ui/screen/facescan/FaceEnrollViewModel.h
+    src/ui/screen/facescan/FaceEnrollViewModel.cpp
     src/ui/screen/register/RegisterViewModel.h
     src/ui/screen/register/RegisterViewModel.cpp
     src/ui/screen/recovery/RecoveryViewModel.h
@@ -191,6 +195,8 @@ set(PROJECT_SOURCES
     src/ui/screen/main/AuthWindow.cpp
     src/ui/screen/main/MainWindow.h
     src/ui/screen/main/MainWindow.cpp
+    src/ui/screen/main/MainWindowViewModel.h
+    src/ui/screen/main/MainWindowViewModel.cpp
 
     src/ui/window/WindowBase.h
     src/ui/window/NavigationWindow.h

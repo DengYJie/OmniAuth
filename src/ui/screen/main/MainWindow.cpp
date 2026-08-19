@@ -1,5 +1,5 @@
 #include "MainWindow.h"
-
+#include "MainWindowViewModel.h"
 #include "ui/animation/AnimatedSettingsVisualSource.h"
 #include "ui/navigation/NavigationPanel.h"
 #include <FluentQt/BasicInput.h>
@@ -9,6 +9,12 @@
 #include "design/Spacing.h"
 #include <QHBoxLayout>
 #include <QVBoxLayout>
+
+#include <FluentQt/DialogsFlyouts.h>
+#include "data/di/AppContainer.h"
+#include "ui/screen/facescan/FaceEnrollDialog.h"
+#include <QPointer>
+#include <QTimer>
 
 namespace fluent_tf = fluent::textfields;
 
@@ -65,13 +71,46 @@ namespace {
         switchLayout->addStretch();
         layout->addLayout(switchLayout);
 
+        // ── 生物识别与安全设置 ──
+        auto* bioSectionTitle = new fluent_tf::Label(QStringLiteral("生物识别与安全 (Biometrics & Security)"), page);
+        bioSectionTitle->setFluentTypography(Typography::FontRole::BodyStrong);
+        layout->addWidget(bioSectionTitle);
+
+        auto* bioDescLabel = new fluent_tf::Label(QStringLiteral("录入或更新您的面部特征，以便在登录界面快速刷脸认证"), page);
+        bioDescLabel->setFluentTypography(Typography::FontRole::Caption);
+        layout->addWidget(bioDescLabel);
+
+        auto* enrollBtn = new fluent::basicinput::Button(QStringLiteral("录入 / 重新绑定人脸"), page);
+        enrollBtn->setFluentStyle(fluent::basicinput::Button::Accent);
+        enrollBtn->setFixedWidth(200);
+        QObject::connect(enrollBtn, &fluent::basicinput::Button::clicked, window, [window]() {
+            if (window->uid() <= 0) {
+                auto* warnDialog = new fluent::dialogs_flyouts::ContentDialog(window);
+                warnDialog->setTitle(QStringLiteral("提示"));
+                warnDialog->setContentText(QStringLiteral("当前未获取到有效用户登录态，无法绑定人脸"));
+                warnDialog->setCloseButtonText(QStringLiteral("确定"));
+                warnDialog->setAttribute(Qt::WA_DeleteOnClose);
+                warnDialog->exec();
+                return;
+            }
+            auto* dialog = new FaceEnrollDialog(window->uid(), window);
+            dialog->setAttribute(Qt::WA_DeleteOnClose);
+            dialog->exec();
+        });
+        layout->addWidget(enrollBtn);
+
         layout->addStretch();
         return page;
     }
 
 }  // namespace
 
-MainWindow::MainWindow(const QString& username, QWidget* parent) : NavigationWindow(parent) {
+MainWindow::MainWindow(int uid, const QString& username, bool promptFaceEnroll, QWidget* parent)
+    : NavigationWindow(parent), m_initPromptRequested(promptFaceEnroll) {
+    
+    m_viewModel = std::make_shared<MainWindowViewModel>(uid, username);
+    m_viewModel->observe(this, &MainWindow::renderState);
+
     initWindow();
     buildNavigation();
     if (!username.isEmpty()) {
@@ -79,11 +118,49 @@ MainWindow::MainWindow(const QString& username, QWidget* parent) : NavigationWin
     }
 }
 
+int MainWindow::uid() const {
+    return m_viewModel->currentState().uid;
+}
+
+QString MainWindow::username() const {
+    return m_viewModel->currentState().username;
+}
+
 void MainWindow::initWindow() {
     setWindowTitle(QStringLiteral("OmniAuth - 主系统"));
     resize(1080, 720);
     setMinimumSize(480, 480);
+}
 
+void MainWindow::showEvent(QShowEvent* event) {
+    NavigationWindow::showEvent(event);
+    if (m_initPromptRequested) {
+        m_initPromptRequested = false;
+        m_viewModel->checkFaceEnrollment();
+    }
+}
+
+void MainWindow::renderState(const MainWindowState& state) {
+    if (state.showFaceEnrollPrompt) {
+        m_viewModel->clearFaceEnrollPrompt();
+        QTimer::singleShot(400, this, &MainWindow::promptFaceEnrollDialog);
+    }
+}
+
+void MainWindow::promptFaceEnrollDialog() {
+    auto* dialog = new fluent::dialogs_flyouts::ContentDialog(this);
+    dialog->setTitle(QStringLiteral("人脸登录推荐"));
+    dialog->setContentText(QStringLiteral("检测到您尚未录入面部数据，是否立即录入以便下次直接刷脸登录？"));
+    dialog->setPrimaryButtonText(QStringLiteral("立即录入"));
+    dialog->setCloseButtonText(QStringLiteral("稍后再说"));
+    dialog->setDefaultButton(fluent::dialogs_flyouts::ContentDialog::Primary);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+
+    if (dialog->exec() == fluent::dialogs_flyouts::ContentDialog::ResultPrimary) {
+        auto* enrollDlg = new FaceEnrollDialog(uid(), this);
+        enrollDlg->setAttribute(Qt::WA_DeleteOnClose);
+        enrollDlg->exec();
+    }
 }
 
 void MainWindow::buildNavigation() {
