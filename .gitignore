@@ -48,3 +48,4 @@ res/models/
 # Data
 data/
 !src/data/
+omniauth_core.db
