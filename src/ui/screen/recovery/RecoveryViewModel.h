@@ -17,9 +17,11 @@ struct RecoveryState {
     
     bool isProcessing = false;
     QString errorMsg;
+
+    bool operator==(const RecoveryState&) const = default;
 };
 
-class RecoveryViewModel : public BaseViewModel<RecoveryState> {
+class RecoveryViewModel : public BaseViewModel<RecoveryViewModel, RecoveryState> {
     Q_OBJECT
 public:
     explicit RecoveryViewModel(QObject* parent = nullptr);

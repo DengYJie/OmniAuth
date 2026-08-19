@@ -18,9 +18,11 @@ struct LoginState {
   // 验证码相关
   bool isCodeSent = false;
   int codeCountdown = 0;
+
+  bool operator==(const LoginState&) const = default;
 };
 
-class LoginViewModel : public BaseViewModel<LoginState> {
+class LoginViewModel : public BaseViewModel<LoginViewModel, LoginState> {
   Q_OBJECT
 
  public:

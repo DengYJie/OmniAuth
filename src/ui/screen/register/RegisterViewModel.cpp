@@ -7,7 +7,7 @@
 #include <QPointer>
 
 RegisterViewModel::RegisterViewModel(QObject* parent)
-    : BaseViewModel<RegisterState>(parent) {
+    : BaseViewModel<RegisterViewModel, RegisterState>(parent) {
   m_countdownTimer = new QTimer(this);
   m_countdownTimer->setInterval(1000);
   connect(m_countdownTimer, &QTimer::timeout, this, [this]() {
@@ -119,14 +119,15 @@ void RegisterViewModel::submitRegister(const QString& account,
   QString email = (contactType == RegisterState::Email) ? contact.trimmed() : QString();
   QString phone = (contactType == RegisterState::Phone) ? contact.trimmed() : QString();
 
+  const quint64 reqId = beginRequest();
   updateState([](RegisterState& s) { s.isRegistering = true; });
 
   if (auto registerUseCase = AppContainer::registerUseCase()) {
       QPointer<RegisterViewModel> weakThis(this);
-      registerUseCase->registerUserAsync(trimmedAcc, password, email, phone, [weakThis](bool ok, QString msg) {
+      registerUseCase->registerUserAsync(trimmedAcc, password, email, phone, [weakThis, reqId](bool ok, QString msg) {
           if (!weakThis) return;
-          QMetaObject::invokeMethod(weakThis.data(), [weakThis, ok, msg]() {
-              if (!weakThis) return;
+          QMetaObject::invokeMethod(weakThis.data(), [weakThis, reqId, ok, msg]() {
+              if (!weakThis || !weakThis->isRequestCurrent(reqId)) return;
               weakThis->updateState([](RegisterState& s) { s.isRegistering = false; });
               if (ok) {
                 weakThis->resetToInitialState();
@@ -161,6 +162,7 @@ void RegisterViewModel::resetToInitialState() {
   if (m_countdownTimer && m_countdownTimer->isActive()) {
     m_countdownTimer->stop();
   }
+  invalidateRequests();
   updateState([](RegisterState& s) { s = RegisterState(); });
 }
 

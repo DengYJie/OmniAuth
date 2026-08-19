@@ -5,18 +5,18 @@
 #include <QRegularExpression>
 #include <QTimer>
 
-RecoveryViewModel::RecoveryViewModel(QObject* parent) : BaseViewModel(parent) {
+RecoveryViewModel::RecoveryViewModel(QObject* parent) : BaseViewModel<RecoveryViewModel, RecoveryState>(parent) {
     m_countdownTimer = new QTimer(this);
     m_countdownTimer->setInterval(1000);
     connect(m_countdownTimer, &QTimer::timeout, this, [this]() {
-        updateState([this](RecoveryState& s) {
+        updateState([](RecoveryState& s) {
             if (s.countdownSeconds > 0) {
                 s.countdownSeconds--;
             }
-            if (s.countdownSeconds == 0) {
-                m_countdownTimer->stop();
-            }
         });
+        if (state().countdownSeconds == 0) {
+            m_countdownTimer->stop();
+        }
     });
 }
 
@@ -60,7 +60,12 @@ void RecoveryViewModel::requestEmailCode(int waitSeconds) {
 }
 
 void RecoveryViewModel::submitEmailAuth(const QString& code) {
-    if (code.length() != 6) return;
+    if (code.length() != 6) {
+        updateState([](RecoveryState& s) {
+            s.errorMsg = QStringLiteral("验证码格式错误，请输入6位验证码");
+        });
+        return;
+    }
     // Simulate API check
     updateState([](RecoveryState& s) {
         s.currentStep = 3;
@@ -108,16 +113,18 @@ void RecoveryViewModel::submitResetPassword(const QString& account, const QStrin
     if (newPwd.isEmpty()) return;
     if (newPwd != confirmPwd) return;
     
+    const quint64 reqId = beginRequest();
     updateState([](RecoveryState& s) { s.isProcessing = true; });
     
     if (auto resetPassword = AppContainer::resetPasswordUseCase()) {
         QPointer<RecoveryViewModel> weakThis(this);
-        resetPassword->resetPasswordAsync(account.trimmed(), newPwd, [weakThis](bool ok, QString msg) {
+        resetPassword->resetPasswordAsync(account.trimmed(), newPwd, [weakThis, reqId](bool ok, QString msg) {
             if (!weakThis) return;
-            QMetaObject::invokeMethod(weakThis.data(), [weakThis, ok, msg]() {
-                if (!weakThis) return;
+            QMetaObject::invokeMethod(weakThis.data(), [weakThis, reqId, ok, msg]() {
+                if (!weakThis || !weakThis->isRequestCurrent(reqId)) return;
                 weakThis->updateState([](RecoveryState& s) { s.isProcessing = false; });
                 if (ok) {
+                    weakThis->resetToInitialState();
                     emit weakThis->resetSuccess();
                 } else {
                     weakThis->updateState([msg](RecoveryState& s) { s.errorMsg = msg; });
@@ -160,6 +167,7 @@ void RecoveryViewModel::resetToInitialState() {
     if (m_countdownTimer->isActive()) {
         m_countdownTimer->stop();
     }
+    invalidateRequests();
     updateState([](RecoveryState& s) {
         s = RecoveryState(); 
     });

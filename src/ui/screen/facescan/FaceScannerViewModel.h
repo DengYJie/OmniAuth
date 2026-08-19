@@ -14,9 +14,11 @@ struct FaceScannerState {
   FaceScannerWidget::ScanState scanState = FaceScannerWidget::ScanState::Connecting;
   QString message;
   QString authenticatedUser;
+
+  bool operator==(const FaceScannerState&) const = default;
 };
 
-class FaceScannerViewModel : public BaseViewModel<FaceScannerState> {
+class FaceScannerViewModel : public BaseViewModel<FaceScannerViewModel, FaceScannerState> {
   Q_OBJECT
 
  public:

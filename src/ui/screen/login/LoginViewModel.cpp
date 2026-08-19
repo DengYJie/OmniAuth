@@ -1,11 +1,11 @@
-﻿#include "data/di/AppContainer.h"
+#include "data/di/AppContainer.h"
 #include "core/CryptoUtils.h"
 #include "ui/screen/login/LoginViewModel.h"
 
 #include <QPointer>
 
 LoginViewModel::LoginViewModel(QObject* parent)
-    : BaseViewModel<LoginState>(parent) {
+    : BaseViewModel<LoginViewModel, LoginState>(parent) {
     // 验证码倒计时
     m_countdownTimer = new QTimer(this);
     m_countdownTimer->setInterval(1000);
@@ -96,6 +96,7 @@ void LoginViewModel::smsLoginClicked(const QString& account, const QString& code
     m_pendingAccount = account.trimmed();
     m_pendingSmsCode = code.trimmed();
 
+    const quint64 reqId = beginRequest();
     updateState([&](LoginState& s) {
         s.errorMessage.clear();
         s.isLoggingIn = true;
@@ -105,10 +106,10 @@ void LoginViewModel::smsLoginClicked(const QString& account, const QString& code
     if (auto smsLogin = AppContainer::smsLoginUseCase()) {
         QPointer<LoginViewModel> weakThis(this);
         smsLogin->smsLoginAsync(m_pendingAccount, m_pendingSmsCode,
-            [weakThis](bool ok, QString msg) {
+            [weakThis, reqId](bool ok, QString msg) {
                 if (!weakThis) return;
-                QMetaObject::invokeMethod(weakThis.data(), [weakThis, ok, msg]() {
-                    if (!weakThis) return;
+                QMetaObject::invokeMethod(weakThis.data(), [weakThis, reqId, ok, msg]() {
+                    if (!weakThis || !weakThis->isRequestCurrent(reqId)) return;
                     weakThis->m_pendingAccount.clear();
                     weakThis->m_pendingSmsCode.clear();
 
@@ -146,38 +147,39 @@ void LoginViewModel::captchaClosed() {
 }
 
 void LoginViewModel::captchaVerified() {
-    updateState([&](LoginState& state) {
-        state.isCaptchaVisible = false;
+    if (m_state.loginMode == 1) {
         // 验证码登录模式：滑块验证通过后发送验证码
-        if (state.loginMode == 1) {
+        m_countdownTimer->start();
+        updateState([](LoginState& state) {
+            state.isCaptchaVisible = false;
             state.isCodeSent = true;
             state.codeCountdown = 60;
             state.errorMessage.clear();
-            m_countdownTimer->start();
-            return;
-        }
+        });
+    } else {
         // 密码登录模式：滑块验证通过后执行登录
-        state.isLoggingIn = true;
+        updateState([](LoginState& state) {
+            state.isCaptchaVisible = false;
+            state.isLoggingIn = true;
         });
 
-    // 密码登录模式走原有流程
-    if (m_state.loginMode == 0) {
+        const quint64 reqId = beginRequest();
         if (auto passwordLogin = AppContainer::passwordLoginUseCase()) {
             QPointer<LoginViewModel> weakThis(this);
-            passwordLogin->loginAsync(m_pendingAccount, m_pendingPassword, [weakThis](bool isAuth) {
+            passwordLogin->loginAsync(m_pendingAccount, m_pendingPassword, [weakThis, reqId](bool isAuth) {
                 if (!weakThis) return;
-                QMetaObject::invokeMethod(weakThis.data(), [weakThis, isAuth]() {
-                    if (!weakThis) return;
+                QMetaObject::invokeMethod(weakThis.data(), [weakThis, reqId, isAuth]() {
+                    if (!weakThis || !weakThis->isRequestCurrent(reqId)) return;
                     weakThis->m_pendingAccount.clear();
                     weakThis->m_pendingPassword.clear();
 
-                    weakThis->updateState([&](LoginState& state) { state.isLoggingIn = false; });
+                    weakThis->updateState([](LoginState& state) { state.isLoggingIn = false; });
 
                     if (isAuth) {
                         emit weakThis->loginSuccess();
                     }
                     else {
-                        weakThis->updateState([&](LoginState& state) {
+                        weakThis->updateState([](LoginState& state) {
                             state.errorMessage = QStringLiteral("账号或密码错误");
                             });
                     }
@@ -185,7 +187,7 @@ void LoginViewModel::captchaVerified() {
                 });
         }
         else {
-            updateState([&](LoginState& state) {
+            updateState([](LoginState& state) {
                 state.isLoggingIn = false;
                 state.errorMessage = QStringLiteral("服务未初始化");
                 });

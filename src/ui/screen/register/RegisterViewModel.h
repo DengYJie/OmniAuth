@@ -24,9 +24,11 @@ struct RegisterState {
   bool isCaptchaVisible = false;
   bool isRegistering = false;
   QString errorMessage;
+
+  bool operator==(const RegisterState&) const = default;
 };
 
-class RegisterViewModel : public BaseViewModel<RegisterState> {
+class RegisterViewModel : public BaseViewModel<RegisterViewModel, RegisterState> {
   Q_OBJECT
 
  public:

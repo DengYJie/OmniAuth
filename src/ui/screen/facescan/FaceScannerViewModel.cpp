@@ -6,22 +6,25 @@
 #include <QTimer>
 
 FaceScannerViewModel::FaceScannerViewModel(QObject* parent)
-    : BaseViewModel<FaceScannerState>(parent),
-      m_faceLoginUseCase(AppContainer::faceLoginUseCase()) {
+    : BaseViewModel<FaceScannerViewModel, FaceScannerState>(parent) {
+    m_faceLoginUseCase = AppContainer::faceLoginUseCase();
+
     qRegisterMetaType<AuthError>();
     qRegisterMetaType<AuthResult>();
 
-    m_faceLoginUseCase->setFrameCallback([this](const QImage& frame) {
-        QMetaObject::invokeMethod(this, [this, frame]() {
-            handleFrameReceived(frame);
-        }, Qt::QueuedConnection);
-    });
+    if (m_faceLoginUseCase) {
+        m_faceLoginUseCase->setFrameCallback([this](const QImage& frame) {
+            QMetaObject::invokeMethod(this, [this, frame]() {
+                handleFrameReceived(frame);
+            }, Qt::QueuedConnection);
+        });
 
-    m_faceLoginUseCase->setAuthCallback([this](AuthResult result, const QString& username, const QString& message) {
-        QMetaObject::invokeMethod(this, [this, result, username, message]() {
-            handleAuthResult(result, username, message);
-        }, Qt::QueuedConnection);
-    });
+        m_faceLoginUseCase->setAuthCallback([this](AuthResult result, const QString& username, const QString& message) {
+            QMetaObject::invokeMethod(this, [this, result, username, message]() {
+                handleAuthResult(result, username, message);
+            }, Qt::QueuedConnection);
+        });
+    }
 }
 
 FaceScannerViewModel::~FaceScannerViewModel() {
