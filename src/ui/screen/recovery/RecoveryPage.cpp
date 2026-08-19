@@ -5,6 +5,7 @@
 #include <QPainter>
 #include <QRegularExpression>
 #include <QTimer>
+#include "design/Spacing.h"
 #include "ui/widget/CaptchaOverlay.h"
 #include <FluentQt/Layout.h>
 #include <FluentQt/StatusInfo.h>
@@ -51,15 +52,16 @@ void RecoveryPage::setupUi() {
     globalCard->setFixedSize(360, 440);
 
     auto* cardLayout = new QVBoxLayout(globalCard);
-    cardLayout->setContentsMargins(40, 28, 40, 28);
-    cardLayout->setSpacing(14);
+    cardLayout->setContentsMargins(Spacing::XLarge, Spacing::Large,
+                                   Spacing::XLarge, Spacing::Large);
+    cardLayout->setSpacing(Spacing::Standard);
     cardLayout->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
 
     m_stepper = new ui::widget::Stepper(globalCard);
     m_stepper->setSteps({QStringLiteral("确认账号"), QStringLiteral("安全验证"), QStringLiteral("重置密码")});
     m_stepper->setFixedWidth(280);
     cardLayout->addWidget(m_stepper, 0, Qt::AlignHCenter);
-    cardLayout->addSpacing(56);
+    cardLayout->addSpacing(Spacing::XXLarge);
 
     m_mainStackedWidget = new fluent::collections::StackView(globalCard);
     cardLayout->addWidget(m_mainStackedWidget);
@@ -82,7 +84,7 @@ void RecoveryPage::setupStep1() {
     m_step1Widget = new QWidget(this);
     auto* layout = new QVBoxLayout(m_step1Widget);
     layout->setContentsMargins(0, 0, 0, 0);
-    layout->setSpacing(14);
+    layout->setSpacing(Spacing::Standard);
     layout->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
 
     auto* title = new fluent_tf::Label(QStringLiteral("找回密码"), m_step1Widget);
@@ -101,7 +103,7 @@ void RecoveryPage::setupStep1() {
     m_accountInput = new fluent_tf::LineEdit(formWidget);
     m_accountInput->setPlaceholderText(QStringLiteral("手机号 / 邮箱"));
     m_accountInput->setClearButtonEnabled(true);
-    m_accountInput->setFixedHeight(32);
+    m_accountInput->setFixedHeight(Spacing::ControlHeight::Standard);
     formLayout->addRow(m_accountInput);
 
     layout->addWidget(formWidget, 0, Qt::AlignCenter);
@@ -111,8 +113,8 @@ void RecoveryPage::setupStep1() {
 
     m_nextBtn = new fluent_b::Button(QStringLiteral("下一步"), m_step1Widget);
     m_nextBtn->setFluentStyle(fluent_b::Button::Accent);
-    m_nextBtn->setFixedWidth(260);
-    m_nextBtn->setFixedHeight(36);
+    m_nextBtn->setFixedWidth(200);
+    m_nextBtn->setFixedHeight(Spacing::ControlHeight::Standard);
     layout->addWidget(m_nextBtn, 0, Qt::AlignCenter);
 }
 
@@ -128,7 +130,7 @@ void RecoveryPage::setupStep2() {
     m_methodSelectWidget = new QWidget(m_step2Stacked);
     auto* methodLayout = new QVBoxLayout(m_methodSelectWidget);
     methodLayout->setContentsMargins(0, 0, 0, 0);
-    methodLayout->setSpacing(14);
+    methodLayout->setSpacing(Spacing::Standard);
     methodLayout->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
 
     auto* title = new fluent_tf::Label(QStringLiteral("选择安全验证方式"), m_methodSelectWidget);
@@ -138,16 +140,17 @@ void RecoveryPage::setupStep2() {
     methodLayout->addSpacing(24);
 
     m_emailBtn = new fluent_b::Button(QStringLiteral("邮箱验证码"), m_methodSelectWidget);
-    m_emailBtn->setFixedWidth(260);
-    m_emailBtn->setFixedHeight(48);
+    m_emailBtn->setFixedWidth(200);
+    m_emailBtn->setFixedHeight(Spacing::ControlHeight::Standard);
     m_emailBtn->setFluentStyle(fluent_b::Button::Standard);
     m_emailBtn->setIconGlyph(Typography::Icons::Mail);
     m_emailBtn->setFluentLayout(fluent_b::Button::IconBefore);
 
     m_faceBtn = new fluent_b::Button(QStringLiteral("人脸识别验证"), m_methodSelectWidget);
-    m_faceBtn->setFixedWidth(260);
-    m_faceBtn->setFixedHeight(48);
+    m_faceBtn->setFixedWidth(200);
+    m_faceBtn->setFixedHeight(Spacing::ControlHeight::Standard);
     m_faceBtn->setFluentStyle(fluent_b::Button::Standard);
+    m_faceBtn->setIconGlyph(Typography::Icons::glyph(QStringLiteral("ic_fluent_scan_person_16_regular")));
     m_faceBtn->setFluentLayout(fluent_b::Button::IconBefore);
 
     methodLayout->addWidget(m_emailBtn, 0, Qt::AlignCenter);
@@ -155,15 +158,15 @@ void RecoveryPage::setupStep2() {
 
     m_backBtnMethod = new fluent_b::Button(QStringLiteral("上一步"), m_methodSelectWidget);
     m_backBtnMethod->setFluentStyle(fluent_b::Button::Standard);
-    m_backBtnMethod->setFixedWidth(260);
-    m_backBtnMethod->setFixedHeight(36);
+    m_backBtnMethod->setFixedWidth(200);
+    m_backBtnMethod->setFixedHeight(Spacing::ControlHeight::Standard);
     methodLayout->addWidget(m_backBtnMethod, 0, Qt::AlignCenter);
 
     // Step 2.2: Email Auth
     m_emailAuthWidget = new QWidget(m_step2Stacked);
     auto* emailLayout = new QVBoxLayout(m_emailAuthWidget);
     emailLayout->setContentsMargins(0, 0, 0, 0);
-    emailLayout->setSpacing(14);
+    emailLayout->setSpacing(Spacing::Standard);
     emailLayout->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
 
     auto* emailTitle = new fluent_tf::Label(QStringLiteral("输入邮箱验证码"), m_emailAuthWidget);
@@ -182,12 +185,12 @@ void RecoveryPage::setupStep2() {
     auto* codeWidget = new QWidget(formWidget2);
     auto* codeLayout = new QHBoxLayout(codeWidget);
     codeLayout->setContentsMargins(0, 0, 0, 0);
-    codeLayout->setSpacing(8);
+    codeLayout->setSpacing(Spacing::Small);
     m_emailCodeInput = new fluent_tf::LineEdit(codeWidget);
     m_emailCodeInput->setPlaceholderText(QStringLiteral("验证码"));
-    m_emailCodeInput->setFixedHeight(32);
+    m_emailCodeInput->setFixedHeight(Spacing::ControlHeight::Standard);
     m_sendCodeBtn = new fluent_b::Button(QStringLiteral("获取验证码"), codeWidget);
-    m_sendCodeBtn->setFixedHeight(32);
+    m_sendCodeBtn->setFixedHeight(Spacing::ControlHeight::Standard);
     m_sendCodeBtn->setFixedWidth(100);
 
     codeLayout->addWidget(m_emailCodeInput, 1);
@@ -203,15 +206,17 @@ void RecoveryPage::setupStep2() {
     btnWidget2->setFixedWidth(260);
     auto* btnLayout2 = new QHBoxLayout(btnWidget2);
     btnLayout2->setContentsMargins(0, 0, 0, 0);
-    btnLayout2->setSpacing(12);
+    btnLayout2->setSpacing(Spacing::Medium);
 
     m_backBtn2 = new fluent_b::Button(QStringLiteral("上一步"), btnWidget2);
     m_backBtn2->setFluentStyle(fluent_b::Button::Standard);
-    m_backBtn2->setFixedHeight(36);
+    m_backBtn2->setFixedWidth(100);
+    m_backBtn2->setFixedHeight(Spacing::ControlHeight::Standard);
 
     m_verifyEmailBtn = new fluent_b::Button(QStringLiteral("验证"), btnWidget2);
     m_verifyEmailBtn->setFluentStyle(fluent_b::Button::Accent);
-    m_verifyEmailBtn->setFixedHeight(36);
+    m_verifyEmailBtn->setFixedWidth(100);
+    m_verifyEmailBtn->setFixedHeight(Spacing::ControlHeight::Standard);
 
     btnLayout2->addWidget(m_backBtn2);
     btnLayout2->addWidget(m_verifyEmailBtn);
@@ -221,7 +226,7 @@ void RecoveryPage::setupStep2() {
     m_faceAuthWidget = new QWidget(m_step2Stacked);
     auto* faceLayout = new QVBoxLayout(m_faceAuthWidget);
     faceLayout->setContentsMargins(0, 0, 0, 0);
-    faceLayout->setSpacing(14);
+    faceLayout->setSpacing(Spacing::Standard);
     faceLayout->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
 
     m_faceScanner = new FaceScannerWidget(m_faceAuthWidget);
@@ -245,7 +250,7 @@ void RecoveryPage::setupStep3() {
     m_step3Widget = new QWidget(this);
     auto* layout = new QVBoxLayout(m_step3Widget);
     layout->setContentsMargins(0, 0, 0, 0);
-    layout->setSpacing(14);
+    layout->setSpacing(Spacing::Standard);
     layout->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
 
     auto* title = new fluent_tf::Label(QStringLiteral("重设密码"), m_step3Widget);
@@ -263,17 +268,17 @@ void RecoveryPage::setupStep3() {
 
     m_newPwdInput = new fluent_tf::PasswordBox(formWidget3);
     m_newPwdInput->setPlaceholderText(QStringLiteral("请输入新密码"));
-    m_newPwdInput->setFixedHeight(32);
+    m_newPwdInput->setFixedHeight(Spacing::ControlHeight::Standard);
     formLayout3->addRow(m_newPwdInput);
 
     m_strengthBar = new QWidget(formWidget3);
-    m_strengthBar->setFixedHeight(4);
+    m_strengthBar->setFixedHeight(Spacing::XSmall);
     m_strengthBar->setStyleSheet("background-color: transparent; border-radius: 2px;");
     formLayout3->addRow(m_strengthBar);
 
     m_confirmPwdInput = new fluent_tf::PasswordBox(formWidget3);
     m_confirmPwdInput->setPlaceholderText(QStringLiteral("请再次输入新密码"));
-    m_confirmPwdInput->setFixedHeight(32);
+    m_confirmPwdInput->setFixedHeight(Spacing::ControlHeight::Standard);
     formLayout3->addRow(m_confirmPwdInput);
 
     layout->addWidget(formWidget3, 0, Qt::AlignCenter);
@@ -283,8 +288,8 @@ void RecoveryPage::setupStep3() {
 
     m_resetBtn = new fluent_b::Button(QStringLiteral("确认重置"), m_step3Widget);
     m_resetBtn->setFluentStyle(fluent_b::Button::Accent);
-    m_resetBtn->setFixedWidth(260);
-    m_resetBtn->setFixedHeight(36);
+    m_resetBtn->setFixedWidth(200);
+    m_resetBtn->setFixedHeight(Spacing::ControlHeight::Standard);
     layout->addWidget(m_resetBtn, 0, Qt::AlignCenter);
 }
 

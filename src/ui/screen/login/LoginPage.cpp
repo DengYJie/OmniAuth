@@ -9,6 +9,7 @@
 
 #include <FluentQt/Navigation.h>
 
+#include "design/Spacing.h"
 #include "ui/screen/login/LoginViewModel.h"
 #include "ui/widget/CaptchaOverlay.h"
 
@@ -27,7 +28,7 @@ namespace {
         auto* row = new QWidget(parent);
         auto* layout = new QHBoxLayout(row);
         layout->setContentsMargins(0, 0, 0, 0);
-        layout->setSpacing(12);
+        layout->setSpacing(Spacing::Medium);
 
         auto* left = new fluent_ly::Divider(Qt::Horizontal, row);
         auto* orLabel = new fluent_tf::Label(QStringLiteral("或"), row);
@@ -241,8 +242,9 @@ void LoginPage::setupUi() {
     card->setFixedSize(360, 440);
 
     auto* cardLayout = new QVBoxLayout(card);
-    cardLayout->setContentsMargins(40, 28, 40, 28);
-    cardLayout->setSpacing(14);
+    cardLayout->setContentsMargins(Spacing::XLarge, Spacing::Large,
+                                   Spacing::XLarge, Spacing::Large);
+    cardLayout->setSpacing(Spacing::Standard);
     cardLayout->setAlignment(Qt::AlignVCenter);
 
     m_titleText = new fluent_tf::Label(QStringLiteral("欢迎使用"), card);
@@ -267,29 +269,29 @@ void LoginPage::setupUi() {
     m_accountInput = new fluent_tf::LineEdit(formWidget);
     m_accountInput->setPlaceholderText(QStringLiteral("手机号 / 邮箱"));
     m_accountInput->setClearButtonEnabled(true);
-    m_accountInput->setFixedHeight(32);
+    m_accountInput->setFixedHeight(Spacing::ControlHeight::Standard);
     formLayout->addRow(m_accountInput);
 
     m_passwordInput = new fluent_tf::PasswordBox(formWidget);
     m_passwordInput->setPlaceholderText(QStringLiteral("请输入密码"));
-    m_passwordInput->setFixedHeight(32);
+    m_passwordInput->setFixedHeight(Spacing::ControlHeight::Standard);
     formLayout->addRow(m_passwordInput);
 
     m_smsCodeSection = new QWidget(formWidget);
     m_smsCodeSection->hide();
-    m_smsCodeSection->setFixedHeight(32);
+    m_smsCodeSection->setFixedHeight(Spacing::ControlHeight::Standard);
     auto* smsLayout = new QHBoxLayout(m_smsCodeSection);
     smsLayout->setContentsMargins(0, 0, 0, 0);
-    smsLayout->setSpacing(10);
+    smsLayout->setSpacing(Spacing::Medium);
 
     m_smsCodeInput = new fluent_tf::LineEdit(m_smsCodeSection);
     m_smsCodeInput->setPlaceholderText(QStringLiteral("请输入验证码"));
-    m_smsCodeInput->setFixedHeight(32);
+    m_smsCodeInput->setFixedHeight(Spacing::ControlHeight::Standard);
 
     m_sendCodeBtn = new fluent_b::Button(QStringLiteral("获取验证码"), m_smsCodeSection);
     m_sendCodeBtn->setFluentStyle(fluent_b::Button::Standard);
     m_sendCodeBtn->setFixedWidth(100);
-    m_sendCodeBtn->setFixedHeight(32);
+    m_sendCodeBtn->setFixedHeight(Spacing::ControlHeight::Standard);
 
     smsLayout->addWidget(m_smsCodeInput);
     smsLayout->addWidget(m_sendCodeBtn);
@@ -335,22 +337,24 @@ void LoginPage::setupUi() {
 
     m_loginBtn = new fluent_b::Button(QStringLiteral("登录"), card);
     m_loginBtn->setFluentStyle(fluent_b::Button::Accent);
-    m_loginBtn->setFixedSize(200, 36);
+    m_loginBtn->setFixedWidth(200);
+    m_loginBtn->setFixedHeight(Spacing::ControlHeight::Standard);
     cardLayout->addWidget(m_loginBtn, 0, Qt::AlignCenter);
 
     m_faceSection = new QWidget(card);
     m_faceSection->hide();
     auto* faceLayout = new QVBoxLayout(m_faceSection);
     faceLayout->setContentsMargins(0, 0, 0, 0);
-    faceLayout->setSpacing(14);
+    faceLayout->setSpacing(Spacing::Standard);
 
     faceLayout->addWidget(makeOrDivider(m_faceSection));
 
     m_faceLoginBtn = new fluent_b::Button(QStringLiteral("刷脸快捷登录"), m_faceSection);
     m_faceLoginBtn->setFluentStyle(fluent_b::Button::Standard);
-    m_faceLoginBtn->setIconGlyph(Typography::Icons::glyph(QStringLiteral("ic_fluent_scan_person_20_regular")));
+    m_faceLoginBtn->setIconGlyph(Typography::Icons::glyph(QStringLiteral("ic_fluent_scan_person_16_regular")));
     m_faceLoginBtn->setFluentLayout(fluent_b::Button::IconBefore);
-    m_faceLoginBtn->setFixedHeight(36);
+    m_faceLoginBtn->setFixedWidth(200);
+    m_faceLoginBtn->setFixedHeight(Spacing::ControlHeight::Standard);
     faceLayout->addWidget(m_faceLoginBtn);
 
     // 透明动画效果
@@ -366,7 +370,7 @@ void LoginPage::setupUi() {
 
     // ── 9. 底部链接 ──
     auto* bottomLayout = new QHBoxLayout();
-    bottomLayout->setContentsMargins(0, 6, 0, 0);
+    bottomLayout->setContentsMargins(0, Spacing::XSmall, 0, 0);
     bottomLayout->addStretch();
 
     m_registerText = makeLinkButton(QStringLiteral("注册账号"), card);

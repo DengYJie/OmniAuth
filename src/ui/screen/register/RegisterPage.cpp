@@ -11,6 +11,7 @@
 #include <FluentQt/Navigation.h>
 #include <FluentQt/StatusInfo.h>
 
+#include "design/Spacing.h"
 #include "ui/screen/register/RegisterViewModel.h"
 #include "ui/widget/CaptchaOverlay.h"
 
@@ -82,8 +83,9 @@ void RegisterPage::setupStep1() {
     card->setFixedSize(360, 440);
 
     auto* cardLayout = new QVBoxLayout(card);
-    cardLayout->setContentsMargins(28, 28, 28, 28);
-    cardLayout->setSpacing(14);
+    cardLayout->setContentsMargins(Spacing::Large, Spacing::Large,
+                                   Spacing::Large, Spacing::Large);
+    cardLayout->setSpacing(Spacing::Standard);
     cardLayout->setAlignment(Qt::AlignVCenter);
 
     auto* title = new fluent_tf::Label(QStringLiteral("选择注册方式"), card);
@@ -108,22 +110,22 @@ void RegisterPage::setupStep1() {
     auto* contactRowWidget = new QWidget(formWidget);
     auto* contactRow = new QHBoxLayout(contactRowWidget);
     contactRow->setContentsMargins(0, 0, 0, 0);
-    contactRow->setSpacing(12);
+    contactRow->setSpacing(Spacing::Medium);
     m_contactInput = new fluent_tf::LineEdit(contactRowWidget);
     m_contactInput->setPlaceholderText(QStringLiteral("邮箱地址"));
     m_contactInput->setClearButtonEnabled(true);
-    m_contactInput->setFixedHeight(32);
+    m_contactInput->setFixedHeight(Spacing::ControlHeight::Standard);
     m_sendBtn = new fluent_b::Button(QStringLiteral("获取验证码"), contactRowWidget);
     m_sendBtn->setFluentStyle(fluent_b::Button::Standard);
     m_sendBtn->setFixedWidth(100);
-    m_sendBtn->setFixedHeight(32);
+    m_sendBtn->setFixedHeight(Spacing::ControlHeight::Standard);
     contactRow->addWidget(m_contactInput);
     contactRow->addWidget(m_sendBtn);
     formLayout->addRow(contactRowWidget);
 
     m_codeInput = new fluent_tf::LineEdit(formWidget);
     m_codeInput->setPlaceholderText(QStringLiteral("6 位验证码"));
-    m_codeInput->setFixedHeight(32);
+    m_codeInput->setFixedHeight(Spacing::ControlHeight::Standard);
     m_codeInput->hide();
     formLayout->addRow(m_codeInput);
 
@@ -167,12 +169,12 @@ void RegisterPage::setupStep1() {
 
     m_nextBtn1 = new fluent_b::Button(QStringLiteral("验证并继续"), card);
     m_nextBtn1->setFluentStyle(fluent_b::Button::Accent);
-    m_nextBtn1->setFixedWidth(260);
-    m_nextBtn1->setFixedHeight(36);
+    m_nextBtn1->setFixedWidth(200);
+    m_nextBtn1->setFixedHeight(Spacing::ControlHeight::Standard);
     cardLayout->addWidget(m_nextBtn1, 0, Qt::AlignCenter);
 
     auto* bottomLayout = new QHBoxLayout();
-    bottomLayout->setContentsMargins(0, 4, 0, 0);
+    bottomLayout->setContentsMargins(0, Spacing::XSmall, 0, 0);
     bottomLayout->setSpacing(4);
     bottomLayout->addStretch();
 
@@ -206,8 +208,9 @@ void RegisterPage::setupStep2() {
     card->setFixedSize(360, 440);
 
     auto* cardLayout = new QVBoxLayout(card);
-    cardLayout->setContentsMargins(28, 28, 28, 28);
-    cardLayout->setSpacing(14);
+    cardLayout->setContentsMargins(Spacing::Large, Spacing::Large,
+                                   Spacing::Large, Spacing::Large);
+    cardLayout->setSpacing(Spacing::Standard);
     cardLayout->setAlignment(Qt::AlignVCenter);
 
     auto* title = new fluent_tf::Label(QStringLiteral("创建您的账号"), card);
@@ -225,21 +228,21 @@ void RegisterPage::setupStep2() {
     m_accountInput = new fluent_tf::LineEdit(formWidget2);
     m_accountInput->setPlaceholderText(QStringLiteral("设置用户名 (中英文、数字)"));
     m_accountInput->setClearButtonEnabled(true);
-    m_accountInput->setFixedHeight(32);
+    m_accountInput->setFixedHeight(Spacing::ControlHeight::Standard);
     formLayout2->addRow(m_accountInput);
 
     m_passwordInput = new fluent_tf::PasswordBox(formWidget2);
     m_passwordInput->setPlaceholderText(QStringLiteral("设置密码 (至少 8 位)"));
-    m_passwordInput->setFixedHeight(32);
+    m_passwordInput->setFixedHeight(Spacing::ControlHeight::Standard);
     formLayout2->addRow(m_passwordInput);
 
     m_strengthBar = new fluent::status_info::ProgressBar(formWidget2);
-    m_strengthBar->setFixedHeight(4);
+    m_strengthBar->setFixedHeight(Spacing::XSmall);
     formLayout2->addRow(m_strengthBar);
 
     m_confirmPasswordInput = new fluent_tf::PasswordBox(formWidget2);
     m_confirmPasswordInput->setPlaceholderText(QStringLiteral("确认密码"));
-    m_confirmPasswordInput->setFixedHeight(32);
+    m_confirmPasswordInput->setFixedHeight(Spacing::ControlHeight::Standard);
     formLayout2->addRow(m_confirmPasswordInput);
 
     cardLayout->addWidget(formWidget2, 0, Qt::AlignCenter);
@@ -251,15 +254,17 @@ void RegisterPage::setupStep2() {
     btnWidget->setFixedWidth(260);
     auto* btnLayout = new QHBoxLayout(btnWidget);
     btnLayout->setContentsMargins(0, 0, 0, 0);
-    btnLayout->setSpacing(12);
+    btnLayout->setSpacing(Spacing::Medium);
 
     m_backBtn2 = new fluent_b::Button(QStringLiteral("上一步"), btnWidget);
     m_backBtn2->setFluentStyle(fluent_b::Button::Standard);
-    m_backBtn2->setFixedHeight(36);
+    m_backBtn2->setFixedWidth(100);
+    m_backBtn2->setFixedHeight(Spacing::ControlHeight::Standard);
 
     m_registerBtn = new fluent_b::Button(QStringLiteral("完成注册"), btnWidget);
     m_registerBtn->setFluentStyle(fluent_b::Button::Accent);
-    m_registerBtn->setFixedHeight(36);
+    m_registerBtn->setFixedWidth(100);
+    m_registerBtn->setFixedHeight(Spacing::ControlHeight::Standard);
 
     btnLayout->addWidget(m_backBtn2);
     btnLayout->addWidget(m_registerBtn);

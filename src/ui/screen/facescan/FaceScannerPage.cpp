@@ -6,6 +6,7 @@
 
 #include <FluentQt/Layout.h>
 
+#include "design/Spacing.h"
 #include "ui/widget/FaceScannerWidget.h"
 #include "ui/screen/facescan/FaceScannerViewModel.h"
 
@@ -23,7 +24,8 @@ FaceScannerPage::FaceScannerPage(FaceScannerViewModel* viewModel,
   card->setFixedSize(360, 440);
 
   auto* cardLayout = new QVBoxLayout(card);
-  cardLayout->setContentsMargins(28, 28, 28, 28);
+  cardLayout->setContentsMargins(Spacing::Large, Spacing::Large,
+                                 Spacing::Large, Spacing::Large);
   cardLayout->setSpacing(0);
   cardLayout->setAlignment(Qt::AlignCenter);
 

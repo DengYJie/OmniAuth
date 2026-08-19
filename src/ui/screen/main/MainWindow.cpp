@@ -6,6 +6,7 @@
 #include <FluentQt/Design.h>
 #include <FluentQt/Navigation.h>
 #include <FluentQt/TextFields.h>
+#include "design/Spacing.h"
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 
@@ -16,7 +17,8 @@ namespace {
     QWidget* createDummyPage(const QString& titleText) {
         auto* page = new QWidget();
         auto* layout = new QVBoxLayout(page);
-        layout->setContentsMargins(32, 24, 32, 24);
+        layout->setContentsMargins(Spacing::XLarge, Spacing::Large,
+                                   Spacing::XLarge, Spacing::Large);
 
         auto* title = new fluent_tf::Label(titleText, page);
         title->setFluentTypography(Typography::FontRole::Title);
@@ -28,8 +30,9 @@ namespace {
     QWidget* createSettingsPage(MainWindow* window) {
         auto* page = new QWidget();
         auto* layout = new QVBoxLayout(page);
-        layout->setContentsMargins(32, 24, 32, 24);
-        layout->setSpacing(16);
+        layout->setContentsMargins(Spacing::XLarge, Spacing::Large,
+                                   Spacing::XLarge, Spacing::Large);
+        layout->setSpacing(Spacing::Standard);
 
         auto* title = new fluent_tf::Label(QStringLiteral("系统设置与个性化"), page);
         title->setFluentTypography(Typography::FontRole::Title);

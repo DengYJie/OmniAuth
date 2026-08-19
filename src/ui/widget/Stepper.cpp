@@ -8,14 +8,15 @@
 #include <QAccessibleEvent>
 #include <QFontMetrics>
 #include "design/IconCatalog.h"
+#include "design/Spacing.h"
 
 namespace ui::widget {
 
 namespace {
-    constexpr int kNodeRadius = 10;            ///< 节点半径
+    constexpr int kNodeRadius = 10;            ///< 节点半径 (无对应 Spacing token，保留设计值)
     constexpr int kNodeDiameter = kNodeRadius * 2; ///< 节点直径
-    constexpr int kTrackHeight = 2;            ///< 连线高度
-    constexpr int kLabelGap = 4;               ///< 节点与标签间距
+    constexpr int kTrackHeight = ::Spacing::Border::Focused; ///< 连线高度 (2px)
+    constexpr int kLabelGap = ::Spacing::XSmall;  ///< 节点与标签间距 (4px)
     constexpr int kMinSegmentWidth = 64;       ///< 最小步骤段宽
 }
 
@@ -162,7 +163,7 @@ void Stepper::paintEvent(QPaintEvent* event) {
     const bool isRtl = layoutDirection() == Qt::RightToLeft;
     const int n = m_steps.size();
     const qreal segmentWidth = static_cast<qreal>(width()) / n;
-    const qreal centerY = 8 + kNodeRadius; // Top padding 8
+    const qreal centerY = ::Spacing::Small + kNodeRadius; // Top padding 8
 
     auto getCx = [&](int i) -> qreal {
         qreal x = (i + 0.5) * segmentWidth;
@@ -316,8 +317,8 @@ void Stepper::paintEvent(QPaintEvent* event) {
         // Draw Labels
         if (m_labelsVisible) {
             qreal labelY = centerY + kNodeRadius + kLabelGap;
-            qreal labelWidth = qMax(0.0, segmentWidth - 8.0);
-            QRectF labelRect(cx - labelWidth / 2, labelY, labelWidth, 20);
+            qreal labelWidth = qMax(0.0, segmentWidth - ::Spacing::Small);
+            QRectF labelRect(cx - labelWidth / 2, labelY, labelWidth, Typography::LineHeight::Body);
 
             QFontMetrics fm(labelFont);
             QString elidedTitle = fm.elidedText(m_steps[i].title, Qt::ElideRight, labelWidth);
@@ -326,8 +327,8 @@ void Stepper::paintEvent(QPaintEvent* event) {
             painter.drawText(labelRect, Qt::AlignCenter, elidedTitle);
 
             if (!m_steps[i].subtitle.isEmpty()) {
-                labelY += 20;
-                QRectF subRect(cx - labelWidth / 2, labelY, labelWidth, 16);
+                labelY += Typography::LineHeight::Body;
+                QRectF subRect(cx - labelWidth / 2, labelY, labelWidth, Typography::LineHeight::Caption);
                 QFontMetrics fmSub(captionFont);
                 QString elidedSub = fmSub.elidedText(m_steps[i].subtitle, Qt::ElideRight, labelWidth);
                 painter.setFont(captionFont);
@@ -417,9 +418,9 @@ void Stepper::focusOutEvent(QFocusEvent* event) {
 
 QSize Stepper::sizeHint() const {
     if (m_steps.isEmpty()) return QSize(0, 0);
-    int h = 16 + kNodeDiameter; // 8 top, 8 bottom
+    int h = 2 * ::Spacing::Small + kNodeDiameter; // 8 top, 8 bottom
     if (m_labelsVisible) {
-        h += kLabelGap + 20; 
+        h += kLabelGap + Typography::LineHeight::Body; 
         bool hasAnySubtitle = false;
         for (const auto& step : m_steps) {
             if (!step.subtitle.isEmpty()) {
@@ -428,7 +429,7 @@ QSize Stepper::sizeHint() const {
             }
         }
         if (hasAnySubtitle) {
-            h += 16;
+            h += Typography::LineHeight::Caption;
         }
     }
     int w = qMax(kMinSegmentWidth * static_cast<int>(m_steps.size()), 200);
