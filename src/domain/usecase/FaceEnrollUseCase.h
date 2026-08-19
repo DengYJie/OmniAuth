@@ -8,10 +8,11 @@
 #include <functional>
 #include <memory>
 #include <opencv2/core.hpp>
-#include <opencv2/videoio.hpp>
 #include <QImage>
 #include <QString>
 #include <thread>
+
+class QtCameraFrameProvider;
 
 /**
  * @brief 人脸录入用例
@@ -35,18 +36,21 @@ public:
     [[nodiscard]] bool isEnrolling() const { return m_isEnrolling; }
 
 private:
-    static bool openCapture(cv::VideoCapture& cap, int cameraIndex);
-    void enrollWorkerLoop(std::stop_token stopToken, int cameraIndex, int uid,
-                          std::function<void(bool, QString)> callback);
+    void processFrameAsync(cv::Mat frame);
+    void finishEnroll(bool success, QString message);
     void runOnMainThread(std::function<void()> fn);
 
     std::shared_ptr<FaceAuthRepository> m_faceRepository;
     std::shared_ptr<UserRepository>     m_userRepository;
+    std::unique_ptr<QtCameraFrameProvider> m_cameraProvider;
 
     std::atomic<bool> m_isEnrolling{false};
-    std::jthread m_enrollThread;
+    std::atomic<bool> m_isProcessingFrame{false};
+    std::jthread m_timeoutThread;
 
     FrameCallback m_frameCallback = nullptr;
+    std::function<void(bool, QString)> m_resultCallback = nullptr;
+    int m_activeUid = -1;
 
     float m_livenessThreshold = 0.85f;
 };

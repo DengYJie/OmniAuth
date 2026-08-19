@@ -17,7 +17,7 @@ OmniAuth 是一个基于 **Qt 6 + C++** 的桌面端智能认证系统，提供�
 ## 技术栈
 
 - **Language**: C++23
-- **UI**: Qt 6 (`Core`, `Gui`, `Widgets`, `Sql`)
+- **UI**: Qt 6 (`Core`, `Gui`, `Multimedia`, `Widgets`, `Sql`)
 - **Build**: CMake + Ninja
 - **Database**: SQLite
 - **Computer Vision**: OpenCV
@@ -34,7 +34,7 @@ OmniAuth 是一个基于 **Qt 6 + C++** 的桌面端智能认证系统，提供�
 
 ### 人脸识别登录
 
-通过摄像头采集实时画面，结合 `RetinaFace`、`MiniFASNet` 与 `ArcFace` 完成人脸检测、活体检测和特征匹配。
+通过 `Qt Multimedia` 采集摄像头画面，结合 `RetinaFace`、`MiniFASNet` 与 `ArcFace` 完成人脸检测、活体检测和特征匹配。
 
 ### 行为风控验证
 

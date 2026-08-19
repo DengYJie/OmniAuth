@@ -8,10 +8,11 @@
 #include <functional>
 #include <memory>
 #include <opencv2/core.hpp>
-#include <opencv2/videoio.hpp>
 #include <QImage>
 #include <QString>
 #include <thread>
+
+class QtCameraFrameProvider;
 
 /**
  * @brief 人脸登录用例
@@ -47,17 +48,15 @@ public:
     [[nodiscard]] bool hasUserFace(int uid) const;
 
 private:
-    static bool openCapture(cv::VideoCapture& cap, int cameraIndex);
-    void captureWorkerLoop(std::stop_token stopToken, int cameraIndex);
     void processFrameAsync(cv::Mat frame);
     float calculateIoU(const cv::Rect& box1, const cv::Rect& box2) const;
 
     std::shared_ptr<FaceAuthRepository> m_faceRepository;
     std::shared_ptr<UserRepository>     m_userRepository;
+    std::unique_ptr<QtCameraFrameProvider> m_cameraProvider;
 
     std::atomic<bool> m_running{false};
     std::atomic<bool> m_isProcessingFrame{false};
-    std::jthread m_captureThread;
 
     FrameCallback m_frameCallback = nullptr;
     AuthCallback  m_authCallback  = nullptr;

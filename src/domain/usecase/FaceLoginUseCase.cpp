@@ -1,53 +1,69 @@
 #include "FaceLoginUseCase.h"
+#include "data/local/QtCameraFrameProvider.h"
 
 #include <QDebug>
-#include <chrono>
 #include <future>
 #include <utility>
-
-#include <opencv2/imgproc.hpp>
-#include <opencv2/videoio.hpp>
-
-// ═══════════════════════════════════════════════════════════════
-// 构造 / 析构
-// ═══════════════════════════════════════════════════════════════
 
 FaceLoginUseCase::FaceLoginUseCase(std::shared_ptr<FaceAuthRepository> faceRepository,
                                    std::shared_ptr<UserRepository> userRepository)
     : m_faceRepository(std::move(faceRepository)),
-      m_userRepository(std::move(userRepository)) {}
+      m_userRepository(std::move(userRepository)),
+      m_cameraProvider(std::make_unique<QtCameraFrameProvider>()) {}
 
 FaceLoginUseCase::~FaceLoginUseCase() {
     stopFaceScan();
 }
 
-// ═══════════════════════════════════════════════════════════════
-// 人脸登录管线 (从 AuthService 原样迁移)
-// ═══════════════════════════════════════════════════════════════
-
 bool FaceLoginUseCase::startFaceScan(int cameraIndex) {
-    if (m_running) stopFaceScan();
+    if (m_running) {
+        stopFaceScan();
+    }
 
     m_running = true;
+    m_isProcessingFrame = false;
     m_lastAuthSuccess = false;
     m_lastFaceBox = cv::Rect();
     m_lastMatchedUid = -1;
 
-    m_captureThread = std::jthread([this, cameraIndex](std::stop_token stopToken) {
-        captureWorkerLoop(stopToken, cameraIndex);
-    });
+    auto startResult = m_cameraProvider->start(
+        cameraIndex,
+        [this](const QImage& previewFrame, cv::Mat inferenceFrame) {
+            if (!m_running) {
+                return;
+            }
 
-    m_isProcessingFrame = false;
+            if (m_frameCallback) {
+                m_frameCallback(previewFrame);
+            }
+
+            if (!m_isProcessingFrame.exchange(true)) {
+                std::thread([this, frame = std::move(inferenceFrame)]() mutable {
+                    processFrameAsync(std::move(frame));
+                }).detach();
+            }
+        },
+        [this](const QString& message) {
+            m_running = false;
+            m_isProcessingFrame = false;
+            if (m_authCallback) {
+                m_authCallback(AuthResult::Error, -1, "", message);
+            }
+        });
+
+    if (!startResult.has_value()) {
+        m_running = false;
+        return false;
+    }
+
     return true;
 }
 
 void FaceLoginUseCase::stopFaceScan() {
     m_running = false;
-    if (m_captureThread.joinable()) {
-        m_captureThread.request_stop();
-    }
-    if (m_captureThread.joinable()) {
-        m_captureThread.join();
+    m_isProcessingFrame = false;
+    if (m_cameraProvider) {
+        m_cameraProvider->stop();
     }
 }
 
@@ -59,60 +75,17 @@ float FaceLoginUseCase::calculateIoU(const cv::Rect& box1, const cv::Rect& box2)
     return static_cast<float>(interArea) / static_cast<float>(unionArea);
 }
 
-// static
-bool FaceLoginUseCase::openCapture(cv::VideoCapture& cap, int cameraIndex) {
-#ifdef _WIN32
-    if (cap.open(cameraIndex, cv::CAP_DSHOW)) return true;
-    if (cap.open(cameraIndex, cv::CAP_MSMF)) return true;
-#endif
-    return cap.open(cameraIndex, cv::CAP_ANY);
-}
-
-void FaceLoginUseCase::captureWorkerLoop(std::stop_token stopToken, int cameraIndex) {
-    cv::VideoCapture cap;
-    if (!openCapture(cap, cameraIndex)) {
-        qWarning() << "FaceLoginUseCase: Unable to open camera at index" << cameraIndex;
-        if (m_authCallback) {
-            m_authCallback(AuthResult::Error, -1, "", QStringLiteral("无法打开摄像头设备"));
-        }
-        m_running = false;
-        return;
-    }
-
-    cap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
-    cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
-    cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
-
-    cv::Mat frame;
-    while (!stopToken.stop_requested() && m_running) {
-        if (!cap.read(frame) || frame.empty()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            continue;
-        }
-
-        if (m_frameCallback) {
-            cv::Mat rgbFrame;
-            cv::cvtColor(frame, rgbFrame, cv::COLOR_BGR2RGB);
-            QImage previewImage(rgbFrame.data, rgbFrame.cols, rgbFrame.rows,
-                                static_cast<int>(rgbFrame.step), QImage::Format_RGB888);
-            m_frameCallback(previewImage.copy());
-        }
-
-        if (!m_isProcessingFrame.exchange(true)) {
-            processFrameAsync(frame.clone());
-        }
-    }
-
-    cap.release();
-}
-
 void FaceLoginUseCase::processFrameAsync(cv::Mat frame) {
-    if (!m_faceRepository) {
+    if (!m_running || !m_faceRepository) {
         m_isProcessingFrame = false;
         return;
     }
 
     m_faceRepository->detectFaceAsync(frame, [this, frame](std::expected<FaceDetectionResult, AuthError> detectRes) {
+        if (!m_running) {
+            m_isProcessingFrame = false;
+            return;
+        }
         if (!detectRes.has_value()) {
             m_lastAuthSuccess = false;
             m_lastFaceBox = cv::Rect();
@@ -166,6 +139,10 @@ void FaceLoginUseCase::processFrameAsync(cv::Mat frame) {
 
         m_faceRepository->checkLivenessAsync(frame, faceBox, m_livenessThreshold,
             [this, frame, faceBox](std::expected<float, AuthError> livenessRes) {
+                if (!m_running) {
+                    m_isProcessingFrame = false;
+                    return;
+                }
                 if (!livenessRes.has_value()) {
                     m_lastAuthSuccess = false;
                     if (m_authCallback) {
@@ -196,6 +173,10 @@ void FaceLoginUseCase::processFrameAsync(cv::Mat frame) {
 
                 m_faceRepository->extractFeatureAsync(alignedFace,
                     [this, faceBox](std::expected<std::vector<float>, AuthError> featureRes) {
+                        if (!m_running) {
+                            m_isProcessingFrame = false;
+                            return;
+                        }
                         if (!featureRes.has_value()) {
                             m_lastAuthSuccess = false;
                             if (m_authCallback) {
@@ -209,8 +190,16 @@ void FaceLoginUseCase::processFrameAsync(cv::Mat frame) {
 
                         m_faceRepository->matchFeatureAsync(feature, m_similarityThreshold,
                             [this, faceBox](bool isMatched, int matchedUid) {
+                                if (!m_running) {
+                                    m_isProcessingFrame = false;
+                                    return;
+                                }
                                 if (isMatched) {
                                     m_userRepository->getUserByIdAsync(matchedUid, [this, faceBox, matchedUid](std::optional<User> userOpt) {
+                                        if (!m_running) {
+                                            m_isProcessingFrame = false;
+                                            return;
+                                        }
                                         if (userOpt) {
                                             m_lastAuthSuccess = true;
                                             m_lastFaceBox = faceBox.box;
@@ -236,10 +225,6 @@ void FaceLoginUseCase::processFrameAsync(cv::Mat frame) {
             });
     });
 }
-
-// ═══════════════════════════════════════════════════════════════
-// 人脸绑定查询
-// ═══════════════════════════════════════════════════════════════
 
 bool FaceLoginUseCase::hasUserFace(const QString& account) const {
     if (!m_userRepository) return false;

@@ -13,6 +13,7 @@ find_package(Qt${QT_VERSION_MAJOR}
     COMPONENTS
         Core
         Gui
+        Multimedia
         Widgets
         Sql
 )
@@ -152,6 +153,8 @@ set(PROJECT_SOURCES
     src/domain/repository/FaceAuthRepository.h
     src/data/local/LocalFaceDataSource.h
     src/data/local/LocalFaceDataSource.cpp
+    src/data/local/QtCameraFrameProvider.h
+    src/data/local/QtCameraFrameProvider.cpp
     src/data/remote/RemoteFaceDataSource.h
     src/data/remote/RemoteFaceDataSource.cpp
     src/data/repository/FaceAuthRepositoryImpl.h
@@ -314,6 +317,7 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE
         Qt::Core
         Qt::Gui
+        Qt::Multimedia
         Qt::Widgets
         Qt::Sql
         FluentQt::FluentQt
