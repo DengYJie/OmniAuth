@@ -22,7 +22,7 @@
 class FaceLoginUseCase {
 public:
     using FrameCallback = std::function<void(const QImage& frame)>;
-    using AuthCallback  = std::function<void(AuthResult result, const QString& username, const QString& message)>;
+    using AuthCallback  = std::function<void(AuthResult result, int uid, const QString& username, const QString& message)>;
 
     explicit FaceLoginUseCase(std::shared_ptr<FaceAuthRepository> faceRepository,
                               std::shared_ptr<UserRepository> userRepository);
@@ -42,8 +42,9 @@ public:
     void stopFaceScan();
     [[nodiscard]] bool isScanning() const { return m_running; }
 
-    // 账号是否已绑定人脸（邮箱/手机号/用户名）
+    // 账号是否已绑定人脸（邮箱/手机号/用户名 或 uid）
     [[nodiscard]] bool hasUserFace(const QString& account) const;
+    [[nodiscard]] bool hasUserFace(int uid) const;
 
 private:
     static bool openCapture(cv::VideoCapture& cap, int cameraIndex);

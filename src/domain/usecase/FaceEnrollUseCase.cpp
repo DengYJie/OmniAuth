@@ -30,23 +30,18 @@ void FaceEnrollUseCase::runOnMainThread(std::function<void()> fn) {
     QMetaObject::invokeMethod(qApp, std::move(fn), Qt::QueuedConnection);
 }
 
-bool FaceEnrollUseCase::startFaceEnroll(const QString& account, int cameraIndex,
+bool FaceEnrollUseCase::startFaceEnroll(int uid, int cameraIndex,
                                         std::function<void(bool, QString)> callback) {
     if (m_isEnrolling) return false; // 已在录入中
+    if (uid <= 0) {
+        callback(false, QStringLiteral("用户 ID 无效"));
+        return false;
+    }
 
-    // 先查账号是否存在
-    m_userRepository->getUserByAccountAsync(account.trimmed(),
-        [this, cameraIndex, callback](std::optional<UserAuthDTO> userOpt) {
-            if (!userOpt.has_value()) {
-                callback(false, QStringLiteral("账户不存在"));
-                return;
-            }
-            int uid = userOpt->user.uid();
-            m_isEnrolling = true;
-            m_enrollThread = std::jthread([this, cameraIndex, uid, callback](std::stop_token stopToken) {
-                enrollWorkerLoop(stopToken, cameraIndex, uid, callback);
-            });
-        });
+    m_isEnrolling = true;
+    m_enrollThread = std::jthread([this, cameraIndex, uid, callback](std::stop_token stopToken) {
+        enrollWorkerLoop(stopToken, cameraIndex, uid, callback);
+    });
     return true;
 }
 
@@ -101,66 +96,43 @@ void FaceEnrollUseCase::enrollWorkerLoop(std::stop_token stopToken, int cameraIn
             continue;
         }
 
+        if (m_frameCallback) {
+            cv::Mat rgbFrame;
+            cv::cvtColor(frame, rgbFrame, cv::COLOR_BGR2RGB);
+            QImage previewImage(rgbFrame.data, rgbFrame.cols, rgbFrame.rows,
+                                static_cast<int>(rgbFrame.step), QImage::Format_RGB888);
+            m_frameCallback(previewImage.copy());
+        }
+
         // 重置本轮状态
-        detectionDone = false;
         detectionSuccess = false;
         capturedFeature.clear();
 
-        // 检测人脸
-        m_faceRepository->detectFaceAsync(frame,
-            [&](std::expected<FaceDetectionResult, AuthError> res) {
-                if (!res.has_value()) {
-                    detectionDone = true;
-                    return;
-                }
-                FaceBox faceBox = res.value().face;
+        // 顺序检测管线（底层引擎在当前工作线程同步完成计算与回调）
+        m_faceRepository->detectFaceAsync(frame, [&](std::expected<FaceDetectionResult, AuthError> res) {
+            if (!res.has_value()) return;
+            FaceBox faceBox = res.value().face;
 
-                // 活体检测
-                bool livenessDone = false;
-                bool livenessOk = false;
-                m_faceRepository->checkLivenessAsync(frame, faceBox, m_livenessThreshold,
-                    [&](std::expected<float, AuthError> lr) {
-                        livenessDone = true;
-                        livenessOk = lr.has_value() && lr.value() >= m_livenessThreshold;
-                    });
-
-                while (!livenessDone && !stopToken.stop_requested() && m_isEnrolling) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(5));
-                }
-                if (!livenessOk) {
-                    detectionDone = true;
-                    return;
-                }
+            // 活体检测
+            m_faceRepository->checkLivenessAsync(frame, faceBox, m_livenessThreshold, [&](std::expected<float, AuthError> lr) {
+                if (!lr.has_value() || lr.value() < m_livenessThreshold) return;
 
                 // 提取特征
                 cv::Mat alignedFace;
                 try {
                     alignedFace = frame(faceBox.box).clone();
                 } catch (...) {
-                    detectionDone = true;
                     return;
                 }
 
-                bool extractDone = false;
-                m_faceRepository->extractFeatureAsync(alignedFace,
-                    [&](std::expected<std::vector<float>, AuthError> er) {
-                        extractDone = true;
-                        if (er.has_value()) {
-                            capturedFeature = er.value();
-                            detectionSuccess = true;
-                        }
-                    });
-
-                while (!extractDone && !stopToken.stop_requested() && m_isEnrolling) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(5));
-                }
-                detectionDone = true;
+                m_faceRepository->extractFeatureAsync(alignedFace, [&](std::expected<std::vector<float>, AuthError> er) {
+                    if (er.has_value()) {
+                        capturedFeature = er.value();
+                        detectionSuccess = true;
+                    }
+                });
             });
-
-        // 等待检测完成
-        while (!detectionDone && !stopToken.stop_requested() && m_isEnrolling) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(5));
-        }
+        });
 
         if (detectionSuccess && !capturedFeature.empty()) {
             runOnMainThread([this, uid, feature = std::move(capturedFeature), callback]() {
@@ -177,6 +149,9 @@ void FaceEnrollUseCase::enrollWorkerLoop(std::stop_token stopToken, int cameraIn
             cap.release();
             return;
         }
+
+        // 避免高频自旋，让出微量 CPU 时间
+        std::this_thread::sleep_for(std::chrono::milliseconds(15));
     }
 
     cap.release();

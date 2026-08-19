@@ -32,7 +32,7 @@ class FaceScannerViewModel : public BaseViewModel<FaceScannerViewModel, FaceScan
 
  signals:
   void stateChanged(const FaceScannerState& state);
-  void faceScanSuccess(const QString& username);
+  void faceScanSuccess(int uid, const QString& username);
   void faceScanFailed(const QString& message);
   void frameReceived(const QImage& frame);
 
@@ -41,7 +41,7 @@ class FaceScannerViewModel : public BaseViewModel<FaceScannerViewModel, FaceScan
 
  private slots:
   void handleFrameReceived(const QImage& frame);
-  void handleAuthResult(AuthResult result, const QString& username, const QString& message);
+  void handleAuthResult(AuthResult result, int uid, const QString& username, const QString& message);
 
  private:
   std::shared_ptr<FaceLoginUseCase> m_faceLoginUseCase;

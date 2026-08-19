@@ -19,9 +19,9 @@ FaceScannerViewModel::FaceScannerViewModel(QObject* parent)
             }, Qt::QueuedConnection);
         });
 
-        m_faceLoginUseCase->setAuthCallback([this](AuthResult result, const QString& username, const QString& message) {
-            QMetaObject::invokeMethod(this, [this, result, username, message]() {
-                handleAuthResult(result, username, message);
+        m_faceLoginUseCase->setAuthCallback([this](AuthResult result, int uid, const QString& username, const QString& message) {
+            QMetaObject::invokeMethod(this, [this, result, uid, username, message]() {
+                handleAuthResult(result, uid, username, message);
             }, Qt::QueuedConnection);
         });
     }
@@ -80,7 +80,7 @@ void FaceScannerViewModel::handleFrameReceived(const QImage& frame) {
     if (!m_state.isScanning) return;
     emit frameReceived(frame);
 }
-void FaceScannerViewModel::handleAuthResult(AuthResult result, const QString& username, const QString& message) {
+void FaceScannerViewModel::handleAuthResult(AuthResult result, int uid, const QString& username, const QString& message) {
     if (!m_state.isScanning && result != AuthResult::Success) return;
 
     switch (result) {
@@ -95,7 +95,7 @@ void FaceScannerViewModel::handleAuthResult(AuthResult result, const QString& us
             if (m_faceLoginUseCase) {
                 m_faceLoginUseCase->stopFaceScan();
             }
-            emit faceScanSuccess(username);
+            emit faceScanSuccess(uid, username);
             break;
         }
         case AuthResult::SpoofingDetected: {

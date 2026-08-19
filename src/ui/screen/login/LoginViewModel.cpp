@@ -106,9 +106,9 @@ void LoginViewModel::smsLoginClicked(const QString& account, const QString& code
     if (auto smsLogin = AppContainer::smsLoginUseCase()) {
         QPointer<LoginViewModel> weakThis(this);
         smsLogin->smsLoginAsync(m_pendingAccount, m_pendingSmsCode,
-            [weakThis, reqId](bool ok, QString msg) {
+            [weakThis, reqId](bool ok, int uid, QString username, QString msg) {
                 if (!weakThis) return;
-                QMetaObject::invokeMethod(weakThis.data(), [weakThis, reqId, ok, msg]() {
+                QMetaObject::invokeMethod(weakThis.data(), [weakThis, reqId, ok, uid, username, msg]() {
                     if (!weakThis || !weakThis->isRequestCurrent(reqId)) return;
                     weakThis->m_pendingAccount.clear();
                     weakThis->m_pendingSmsCode.clear();
@@ -120,7 +120,7 @@ void LoginViewModel::smsLoginClicked(const QString& account, const QString& code
                         });
 
                     if (ok) {
-                        emit weakThis->loginSuccess();
+                        emit weakThis->loginSuccess(uid, username);
                     }
                     else {
                         weakThis->updateState([msg](LoginState& s) {
@@ -166,9 +166,9 @@ void LoginViewModel::captchaVerified() {
         const quint64 reqId = beginRequest();
         if (auto passwordLogin = AppContainer::passwordLoginUseCase()) {
             QPointer<LoginViewModel> weakThis(this);
-            passwordLogin->loginAsync(m_pendingAccount, m_pendingPassword, [weakThis, reqId](bool isAuth) {
+            passwordLogin->loginAsync(m_pendingAccount, m_pendingPassword, [weakThis, reqId](bool isAuth, int uid, QString username) {
                 if (!weakThis) return;
-                QMetaObject::invokeMethod(weakThis.data(), [weakThis, reqId, isAuth]() {
+                QMetaObject::invokeMethod(weakThis.data(), [weakThis, reqId, isAuth, uid, username]() {
                     if (!weakThis || !weakThis->isRequestCurrent(reqId)) return;
                     weakThis->m_pendingAccount.clear();
                     weakThis->m_pendingPassword.clear();
@@ -176,7 +176,7 @@ void LoginViewModel::captchaVerified() {
                     weakThis->updateState([](LoginState& state) { state.isLoggingIn = false; });
 
                     if (isAuth) {
-                        emit weakThis->loginSuccess();
+                        emit weakThis->loginSuccess(uid, username);
                     }
                     else {
                         weakThis->updateState([](LoginState& state) {

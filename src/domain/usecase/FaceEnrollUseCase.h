@@ -9,6 +9,7 @@
 #include <memory>
 #include <opencv2/core.hpp>
 #include <opencv2/videoio.hpp>
+#include <QImage>
 #include <QString>
 #include <thread>
 
@@ -20,11 +21,15 @@
  */
 class FaceEnrollUseCase {
 public:
+    using FrameCallback = std::function<void(const QImage& frame)>;
+
     explicit FaceEnrollUseCase(std::shared_ptr<FaceAuthRepository> faceRepository,
                                std::shared_ptr<UserRepository> userRepository);
     ~FaceEnrollUseCase();
 
-    bool startFaceEnroll(const QString& account, int cameraIndex,
+    void setFrameCallback(FrameCallback callback) { m_frameCallback = std::move(callback); }
+
+    bool startFaceEnroll(int uid, int cameraIndex,
                          std::function<void(bool, QString)> callback);
     void stopFaceEnroll();
     [[nodiscard]] bool isEnrolling() const { return m_isEnrolling; }
@@ -40,6 +45,8 @@ private:
 
     std::atomic<bool> m_isEnrolling{false};
     std::jthread m_enrollThread;
+
+    FrameCallback m_frameCallback = nullptr;
 
     float m_livenessThreshold = 0.85f;
 };

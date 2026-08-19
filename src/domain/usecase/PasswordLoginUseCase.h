@@ -12,7 +12,7 @@ public:
     explicit PasswordLoginUseCase(std::shared_ptr<UserRepository> userRepository);
 
     void loginAsync(const QString& account, const QString& password,
-                    std::function<void(bool)> callback);
+                    std::function<void(bool success, int uid, const QString& username)> callback);
 
 private:
     std::shared_ptr<UserRepository> m_userRepository;

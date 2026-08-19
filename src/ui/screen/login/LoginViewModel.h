@@ -42,7 +42,7 @@ class LoginViewModel : public BaseViewModel<LoginViewModel, LoginState> {
  signals:
   void stateChanged(const LoginState& state);
   void requestCaptcha();  // 验证码模式下唤起滑块验证
-  void loginSuccess();    // 发送给上层进行页面跳转或处理
+  void loginSuccess(int uid, const QString& username);    // 发送给上层进行页面跳转或处理
 
  protected:
   void emitStateChanged() override;

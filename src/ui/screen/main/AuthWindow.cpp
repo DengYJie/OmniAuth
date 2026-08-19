@@ -145,18 +145,16 @@ void AuthWindow::bindViewModels() {
         &AuthWindow::handlePoppedToRoot);
 
     connect(m_faceScannerViewModel, &FaceScannerViewModel::faceScanSuccess, this,
-        [this](const QString& username) {
-            qDebug() << "Face Auth Success for user:" << username;
-            auto mainWindow = new MainWindow(username);
+        [this](int uid, const QString& username) {
+            auto mainWindow = new MainWindow(uid, username, /*promptFaceEnroll=*/false);
             mainWindow->setAttribute(Qt::WA_DeleteOnClose);
             mainWindow->show();
             this->close();
         });
 
     connect(m_loginViewModel, &LoginViewModel::loginSuccess, this,
-        [this]() {
-            qDebug() << "Password Auth Success";
-            auto mainWindow = new MainWindow();
+        [this](int uid, const QString& username) {
+            auto mainWindow = new MainWindow(uid, username, /*promptFaceEnroll=*/true);
             mainWindow->setAttribute(Qt::WA_DeleteOnClose);
             mainWindow->show();
             this->close();
